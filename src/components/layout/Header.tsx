@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePokerStore } from '../../store/usePokerStore';
-import { Volume2, VolumeX, Palette, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Volume2, VolumeX, Palette, Wifi, WifiOff, RefreshCw, RotateCw } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
@@ -12,14 +12,16 @@ export const Header: React.FC = () => {
   const fourColorDeck = usePokerStore((state) => state.fourColorDeck);
   const toggleFourColorDeck = usePokerStore((state) => state.toggleFourColorDeck);
   const resetGame = usePokerStore((state) => state.resetGame);
+  const tableOrientation = usePokerStore((state) => state.tableOrientation);
+  const toggleOrientation = usePokerStore((state) => state.toggleOrientation);
 
   return (
-    <header className="w-full bg-slate-950/80 border-b border-slate-800/80 px-6 py-3 flex items-center justify-between backdrop-blur-md z-30">
+    <header className="w-full h-11 sm:h-12 shrink-0 bg-slate-950/80 border-b border-slate-800/80 px-3 sm:px-6 py-1 flex items-center justify-between backdrop-blur-md z-30">
       {/* Brand & Table Info */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">♠️</span>
-          <span className="font-serif-poker font-black text-lg bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base sm:text-xl">♠️</span>
+          <span className="font-serif-poker font-black text-sm sm:text-lg bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
             POKER PRO
           </span>
         </div>
@@ -91,6 +93,16 @@ export const Header: React.FC = () => {
           title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
         >
           {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+        </button>
+
+        {/* Rotate Table Orientation */}
+        <button
+          onClick={toggleOrientation}
+          className="flex items-center gap-1 p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-amber-300 border border-slate-800 transition-all"
+          title={`Rotate Table (${tableOrientation}). Click to cycle.`}
+        >
+          <RotateCw className="w-4 h-4 text-amber-400" />
+          <span className="hidden md:inline text-[10px] font-bold uppercase">{tableOrientation}</span>
         </button>
 
         {/* Reset Hand */}

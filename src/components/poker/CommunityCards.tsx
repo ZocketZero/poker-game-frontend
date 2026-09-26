@@ -11,7 +11,7 @@ export const CommunityCards: React.FC<CommunityCardsProps> = ({ cards }) => {
   const slots = Array.from({ length: 5 }, (_, i) => cards[i] || null);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-black/30 border border-emerald-500/20 backdrop-blur-sm shadow-inner">
+    <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 sm:py-2 rounded-xl sm:rounded-2xl bg-black/30 border border-emerald-500/20 backdrop-blur-sm shadow-inner">
       {slots.map((card, idx) => (
         <div key={idx} className="transition-all duration-300">
           <Card card={card || undefined} size="md" />

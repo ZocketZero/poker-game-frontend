@@ -3,7 +3,7 @@ import { usePokerStore } from '../../store/usePokerStore';
 import { FastForward, Trophy, RotateCcw, ChevronRight, Bot, Wrench } from 'lucide-react';
 
 export const DevSimulatorToolbar: React.FC = () => {
-  const [isOpen, setIsOpen] = useState<boolean>(true);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const gameState = usePokerStore((state) => state.gameState);
   const nextStreet = usePokerStore((state) => state.nextStreet);
   const triggerShowdown = usePokerStore((state) => state.triggerShowdown);
@@ -77,7 +77,7 @@ export const DevSimulatorToolbar: React.FC = () => {
       </button>
 
       {/* Control Drawer */}
-      <div className="w-72 bg-slate-950/95 border-l border-t border-b border-slate-800 rounded-l-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col gap-3.5 text-xs text-slate-300">
+      <div className="w-72 max-h-[calc(100dvh-70px)] overflow-y-auto bg-slate-950/95 border-l border-t border-b border-slate-800 rounded-l-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col gap-3.5 text-xs text-slate-300">
         <div className="flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Wrench className="w-4 h-4 text-amber-400" />

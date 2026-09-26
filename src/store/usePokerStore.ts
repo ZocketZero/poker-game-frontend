@@ -10,6 +10,7 @@ interface PokerStore {
   isConnected: boolean;
   soundEnabled: boolean;
   fourColorDeck: boolean;
+  tableOrientation: 'auto' | 'vertical' | 'rotated90' | 'horizontal';
 
   // Actions
   setGameState: (state: GameState | ((prev: GameState) => GameState)) => void;
@@ -17,6 +18,7 @@ interface PokerStore {
   setMockMode: (enabled: boolean) => void;
   toggleSound: () => void;
   toggleFourColorDeck: () => void;
+  toggleOrientation: () => void;
 
   // Game gameplay interactions
   dispatchPlayerAction: (action: ActionType, amount?: number) => void;
@@ -36,6 +38,7 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
   isConnected: false,
   soundEnabled: true,
   fourColorDeck: false,
+  tableOrientation: 'auto',
 
   setGameState: (updater) =>
     set((state) => ({
@@ -46,6 +49,17 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
   setMockMode: (enabled) => set({ isMockMode: enabled }),
   toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
   toggleFourColorDeck: () => set((state) => ({ fourColorDeck: !state.fourColorDeck })),
+  toggleOrientation: () =>
+    set((state) => {
+      const modes: ('auto' | 'vertical' | 'rotated90' | 'horizontal')[] = [
+        'auto',
+        'vertical',
+        'rotated90',
+        'horizontal',
+      ];
+      const nextIdx = (modes.indexOf(state.tableOrientation) + 1) % modes.length;
+      return { tableOrientation: modes[nextIdx] };
+    }),
 
   dispatchPlayerAction: (action, amount) => {
     const { gameState, currentUserId } = get();

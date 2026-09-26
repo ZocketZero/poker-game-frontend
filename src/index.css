@@ -3,8 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    @apply h-full w-full overflow-hidden;
+    height: 100dvh;
+    touch-action: manipulation;
+  }
+
   body {
-    @apply bg-[#0b0e14] text-gray-100 min-h-screen selection:bg-amber-500 selection:text-black;
+    @apply bg-[#0b0e14] text-gray-100 selection:bg-amber-500 selection:text-black;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }

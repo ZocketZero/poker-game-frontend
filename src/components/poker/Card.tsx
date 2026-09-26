@@ -22,7 +22,11 @@ export const Card: React.FC<CardProps> = ({ card, className = '', size = 'md' })
     return (
       <div
         className={`rounded-lg border-2 border-dashed border-emerald-800/40 bg-emerald-950/20 flex items-center justify-center ${
-          size === 'sm' ? 'w-10 h-14' : size === 'lg' ? 'w-20 h-28' : 'w-14 h-20'
+          size === 'sm'
+            ? 'w-7 h-10 sm:w-9 sm:h-13'
+            : size === 'lg'
+            ? 'w-14 h-20 sm:w-20 sm:h-28'
+            : 'w-8 h-12 sm:w-12 sm:h-18 md:w-14 md:h-20'
         } ${className}`}
       />
     );
@@ -48,9 +52,9 @@ export const Card: React.FC<CardProps> = ({ card, className = '', size = 'md' })
   };
 
   const sizeClasses = {
-    sm: 'w-10 h-14 text-xs',
-    md: 'w-14 h-20 text-sm',
-    lg: 'w-20 h-28 text-base',
+    sm: 'w-7 h-10 sm:w-9 sm:h-13 text-[10px] sm:text-xs',
+    md: 'w-8 h-12 sm:w-12 sm:h-18 md:w-14 md:h-20 text-xs sm:text-sm',
+    lg: 'w-14 h-20 sm:w-20 sm:h-28 text-sm sm:text-base',
   }[size];
 
   if (!faceUp) {
@@ -72,25 +76,25 @@ export const Card: React.FC<CardProps> = ({ card, className = '', size = 'md' })
 
   return (
     <div
-      className={`relative ${sizeClasses} rounded-lg bg-white shadow-card font-semibold select-none flex flex-col justify-between p-1.5 transition-all duration-200 ${
-        highlighted ? 'ring-4 ring-amber-400 scale-105 shadow-xl' : 'hover:-translate-y-1'
+      className={`relative ${sizeClasses} rounded-lg bg-white shadow-card font-semibold select-none flex flex-col justify-between p-0.5 sm:p-1.5 transition-all duration-200 ${
+        highlighted ? 'ring-2 sm:ring-4 ring-amber-400 scale-105 shadow-xl' : 'hover:-translate-y-0.5'
       } ${className}`}
     >
       {/* Top Left Rank & Suit */}
       <div className={`flex flex-col items-center leading-none ${colorClass}`}>
-        <span className="font-bold tracking-tight">{rank}</span>
-        <span className="text-[11px] -mt-0.5">{symbol}</span>
+        <span className="font-bold tracking-tight text-[9px] sm:text-xs md:text-sm">{rank}</span>
+        <span className="text-[8px] sm:text-[10px] md:text-xs -mt-0.5">{symbol}</span>
       </div>
 
       {/* Center Big Suit */}
-      <div className={`absolute inset-0 flex items-center justify-center text-xl pointer-events-none opacity-85 ${colorClass}`}>
+      <div className={`absolute inset-0 flex items-center justify-center text-xs sm:text-base md:text-xl pointer-events-none opacity-85 ${colorClass}`}>
         {symbol}
       </div>
 
       {/* Bottom Right Rank & Suit (Inverted) */}
       <div className={`flex flex-col items-center leading-none rotate-180 self-end ${colorClass}`}>
-        <span className="font-bold tracking-tight">{rank}</span>
-        <span className="text-[11px] -mt-0.5">{symbol}</span>
+        <span className="font-bold tracking-tight text-[9px] sm:text-xs md:text-sm">{rank}</span>
+        <span className="text-[8px] sm:text-[10px] md:text-xs -mt-0.5">{symbol}</span>
       </div>
     </div>
   );
