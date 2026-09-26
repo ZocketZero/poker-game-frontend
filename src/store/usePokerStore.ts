@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { GameState, ActionType, Card, TableStage, WinningHand } from '../types/poker';
-import { createInitialMockGameState, sampleCommunityCards } from '../utils/mockData';
+import { createInitialMockGameState, sampleCommunityCards, generateMockPlayersForSeats } from '../utils/mockData';
 import confetti from 'canvas-confetti';
 
 interface PokerStore {
@@ -19,6 +19,7 @@ interface PokerStore {
   toggleSound: () => void;
   toggleFourColorDeck: () => void;
   toggleOrientation: () => void;
+  setMaxSeats: (seats: number) => void;
 
   // Game gameplay interactions
   dispatchPlayerAction: (action: ActionType, amount?: number) => void;
@@ -251,9 +252,60 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
     });
   },
 
-  resetGame: () => {
+  setMaxSeats: (seats: number) => {
+    const clamped = Math.max(2, Math.min(10, Math.round(seats)));
+    const { gameState, currentUserId } = get();
+    if (gameState.maxSeats === clamped) return;
+
+    let updatedPlayers = [...gameState.players];
+    if (clamped > updatedPlayers.length) {
+      // Append bots or null seats
+      const newSeedList = generateMockPlayersForSeats(clamped);
+      while (updatedPlayers.length < clamped) {
+        const nextIdx = updatedPlayers.length;
+        updatedPlayers.push(newSeedList[nextIdx] || null);
+      }
+    } else {
+      updatedPlayers = updatedPlayers.slice(0, clamped);
+    }
+
+    // Ensure seats are numbered properly
+    updatedPlayers = updatedPlayers.map((p, idx) => (p ? { ...p, seatIndex: idx } : null));
+
+    // Ensure hero is still seated
+    const heroIdx = updatedPlayers.findIndex((p) => p?.id === currentUserId);
+    if (heroIdx === -1) {
+      updatedPlayers[0] = {
+        id: currentUserId,
+        name: 'You (Hero)',
+        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=hero',
+        chips: 1500,
+        currentBet: 0,
+        status: 'active',
+        cards: [
+          { suit: 'spades', rank: 'A', faceUp: true },
+          { suit: 'hearts', rank: 'K', faceUp: true },
+        ],
+        seatIndex: 0,
+        isCurrentTurn: true,
+      };
+    }
+
     set({
-      gameState: createInitialMockGameState(),
+      gameState: {
+        ...gameState,
+        maxSeats: clamped,
+        players: updatedPlayers,
+        currentTurnSeat: gameState.currentTurnSeat !== null ? gameState.currentTurnSeat % clamped : 0,
+        dealerSeat: gameState.dealerSeat % clamped,
+      },
+    });
+  },
+
+  resetGame: () => {
+    const { gameState } = get();
+    set({
+      gameState: createInitialMockGameState(gameState.maxSeats),
     });
   },
 }));

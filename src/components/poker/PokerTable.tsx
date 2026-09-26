@@ -5,25 +5,91 @@ import { CommunityCards } from './CommunityCards';
 import { PotDisplay } from './PotDisplay';
 import { Trophy } from 'lucide-react';
 
-// Coordinates for Horizontal 6-max table layout in percentages (x, y)
-const horizontalSeatPositions = [
-  { x: 50, y: 90 }, // Seat 0: Hero (Bottom Center)
-  { x: 12, y: 72 }, // Seat 1: Bottom Left
-  { x: 12, y: 28 }, // Seat 2: Top Left
-  { x: 50, y: 10 }, // Seat 3: Top Center
-  { x: 88, y: 28 }, // Seat 4: Top Right
-  { x: 88, y: 72 }, // Seat 5: Bottom Right
-];
+/**
+ * Calculates (x, y) coordinates as percentages around the table perimeter
+ * for any number of seats from 2 to 10.
+ * Seat 0 (Hero) is always anchored at bottom center.
+ */
+export const calculateSeatCoordinates = (
+  totalSeats: number,
+  isVertical: boolean
+): { x: number; y: number }[] => {
+  const count = Math.max(2, Math.min(10, totalSeats));
 
-// Coordinates for Vertical (Mobile Portrait) 6-max table layout in percentages (x, y)
-const verticalSeatPositions = [
-  { x: 50, y: 91 }, // Seat 0: Hero (Bottom Center)
-  { x: 13, y: 70 }, // Seat 1: Bottom Left
-  { x: 13, y: 30 }, // Seat 2: Top Left
-  { x: 50, y: 9 },  // Seat 3: Top Center
-  { x: 87, y: 30 }, // Seat 4: Top Right
-  { x: 87, y: 70 }, // Seat 5: Bottom Right
-];
+  if (!isVertical) {
+    // Horizontal (Landscape / Desktop)
+    if (count === 2) {
+      return [
+        { x: 50, y: 90 }, // Hero (Bottom)
+        { x: 50, y: 10 }, // Opponent (Top)
+      ];
+    }
+    if (count === 6) {
+      return [
+        { x: 50, y: 90 },
+        { x: 12, y: 72 },
+        { x: 12, y: 28 },
+        { x: 50, y: 10 },
+        { x: 88, y: 28 },
+        { x: 88, y: 72 },
+      ];
+    }
+    if (count === 9) {
+      return [
+        { x: 50, y: 91 },
+        { x: 26, y: 84 },
+        { x: 11, y: 58 },
+        { x: 11, y: 32 },
+        { x: 30, y: 11 },
+        { x: 70, y: 11 },
+        { x: 89, y: 32 },
+        { x: 89, y: 58 },
+        { x: 74, y: 84 },
+      ];
+    }
+
+    // Elliptical distribution for 3, 4, 5, 7, 8, 10 seats
+    const Rx = 39.5;
+    const Ry = 39.5;
+    const coords: { x: number; y: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const theta = Math.PI / 2 + (i * 2 * Math.PI) / count;
+      const x = Math.round((50 + Rx * Math.cos(theta)) * 10) / 10;
+      const y = Math.round((50 + Ry * Math.sin(theta)) * 10) / 10;
+      coords.push({ x, y });
+    }
+    return coords;
+  } else {
+    // Vertical (Portrait Mobile)
+    if (count === 2) {
+      return [
+        { x: 50, y: 92 },
+        { x: 50, y: 8 },
+      ];
+    }
+    if (count === 6) {
+      return [
+        { x: 50, y: 91 },
+        { x: 13, y: 70 },
+        { x: 13, y: 30 },
+        { x: 50, y: 9 },
+        { x: 87, y: 30 },
+        { x: 87, y: 70 },
+      ];
+    }
+
+    const Rx = 38;
+    const Ry = 41.5;
+    const coords: { x: number; y: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const theta = Math.PI / 2 + (i * 2 * Math.PI) / count;
+      const x = Math.round((50 + Rx * Math.cos(theta)) * 10) / 10;
+      const y = Math.round((50 + Ry * Math.sin(theta)) * 10) / 10;
+      coords.push({ x, y });
+    }
+    return coords;
+  }
+};
 
 export const PokerTable: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
@@ -49,14 +115,23 @@ export const PokerTable: React.FC = () => {
     };
   }, []);
 
-  const { players, communityCards, pots, tableName, smallBlind, bigBlind, winningHand } = gameState;
+  const { players, communityCards, pots, tableName, smallBlind, bigBlind, winningHand, maxSeats = 6 } = gameState;
 
   // Determine effective orientation mode
   const isVertical =
     tableOrientation === 'vertical' || (tableOrientation === 'auto' && isMobilePortrait);
   const isRotated90 = tableOrientation === 'rotated90';
 
-  const currentPositions = isVertical ? verticalSeatPositions : horizontalSeatPositions;
+  const totalSeats = Math.max(2, Math.min(10, maxSeats));
+  const currentPositions = calculateSeatCoordinates(totalSeats, isVertical);
+
+  // Dynamic scale adjustment for high seat counts (8-10 players)
+  const seatScaleClass =
+    totalSeats >= 9
+      ? 'scale-[0.78] sm:scale-85'
+      : totalSeats >= 7
+      ? 'scale-[0.88] sm:scale-95'
+      : 'scale-100';
 
   return (
     <div className="relative w-full h-full max-h-full flex items-center justify-center p-1 sm:p-2 md:p-3 select-none overflow-hidden">
@@ -77,7 +152,7 @@ export const PokerTable: React.FC = () => {
                 aspectRatio: '9 / 14',
                 maxHeight: '100%',
                 width: 'min(100%, calc((100dvh - 110px) * (9 / 14)))',
-                maxWidth: '430px',
+                maxWidth: '440px',
               }
             : {
                 aspectRatio: '16 / 9',
@@ -120,7 +195,7 @@ export const PokerTable: React.FC = () => {
                 }`}
               >
                 <span className="font-serif-poker tracking-widest text-emerald-200 text-[9px] sm:text-xs uppercase font-bold">
-                  {tableName}
+                  {tableName} • {totalSeats}-Max
                 </span>
                 <p className="text-[8px] sm:text-[10px] text-emerald-300 font-medium">
                   Blinds: ${smallBlind} / ${bigBlind}
@@ -157,7 +232,7 @@ export const PokerTable: React.FC = () => {
           return (
             <div
               key={index}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto"
+              className={`absolute transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto transition-all duration-300 ${seatScaleClass}`}
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePokerStore } from '../../store/usePokerStore';
-import { Volume2, VolumeX, Palette, Wifi, WifiOff, RefreshCw, RotateCw } from 'lucide-react';
+import { Volume2, VolumeX, Palette, Wifi, WifiOff, RefreshCw, RotateCw, Users } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
@@ -14,6 +14,7 @@ export const Header: React.FC = () => {
   const resetGame = usePokerStore((state) => state.resetGame);
   const tableOrientation = usePokerStore((state) => state.tableOrientation);
   const toggleOrientation = usePokerStore((state) => state.toggleOrientation);
+  const setMaxSeats = usePokerStore((state) => state.setMaxSeats);
 
   return (
     <header className="w-full h-11 sm:h-12 shrink-0 bg-slate-950/80 border-b border-slate-800/80 px-3 sm:px-6 py-1 flex items-center justify-between backdrop-blur-md z-30">
@@ -103,6 +104,21 @@ export const Header: React.FC = () => {
         >
           <RotateCw className="w-4 h-4 text-amber-400" />
           <span className="hidden md:inline text-[10px] font-bold uppercase">{tableOrientation}</span>
+        </button>
+
+        {/* Seat Count Quick Toggle */}
+        <button
+          onClick={() => {
+            const current = gameState.maxSeats || 6;
+            const cycle = [2, 6, 8, 9, 10];
+            const nextIdx = (cycle.indexOf(current) + 1) % cycle.length;
+            setMaxSeats(cycle[nextIdx]);
+          }}
+          className="flex items-center gap-1 p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-amber-300 border border-slate-800 transition-all"
+          title={`Seats: ${gameState.maxSeats || 6} Players. Click to cycle (2, 6, 8, 9, 10).`}
+        >
+          <Users className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] font-bold uppercase">{gameState.maxSeats || 6}P</span>
         </button>
 
         {/* Reset Hand */}

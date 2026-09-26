@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePokerStore } from '../../store/usePokerStore';
-import { FastForward, Trophy, RotateCcw, ChevronRight, Bot, Wrench } from 'lucide-react';
+import { FastForward, Trophy, RotateCcw, ChevronRight, Bot, Wrench, Users } from 'lucide-react';
 
 export const DevSimulatorToolbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -9,6 +9,7 @@ export const DevSimulatorToolbar: React.FC = () => {
   const triggerShowdown = usePokerStore((state) => state.triggerShowdown);
   const resetGame = usePokerStore((state) => state.resetGame);
   const setGameState = usePokerStore((state) => state.setGameState);
+  const setMaxSeats = usePokerStore((state) => state.setMaxSeats);
 
   // Simulate a random bot move for testing turn rotation
   const simulateBotMove = () => {
@@ -93,6 +94,46 @@ export const DevSimulatorToolbar: React.FC = () => {
         <p className="text-[11px] text-slate-400">
           Use this toolbar to step through poker rounds and trigger actions without needing the backend running.
         </p>
+
+        {/* Table Seat Count Selector (2 - 10) */}
+        <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span>Table Seats</span>
+            </span>
+            <span className="font-bold text-amber-400 text-xs px-2 py-0.5 rounded bg-black/40 border border-amber-500/30">
+              {gameState.maxSeats || 6} Seats
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min={2}
+            max={10}
+            step={1}
+            value={gameState.maxSeats || 6}
+            onChange={(e) => setMaxSeats(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+          />
+
+          <div className="grid grid-cols-5 gap-1 text-[10px]">
+            {[2, 4, 6, 8, 9, 10].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setMaxSeats(s)}
+                className={`py-0.5 rounded font-semibold transition-colors ${
+                  (gameState.maxSeats || 6) === s
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
+              >
+                {s === 2 ? 'HU' : `${s}P`}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-2">
