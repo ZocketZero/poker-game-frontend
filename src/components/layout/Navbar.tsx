@@ -22,8 +22,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onCreateRoomClick }) => {
   const currentTableId = usePokerStore((state) => state.currentTableId);
   const auth = usePokerStore((state) => state.auth);
   const logout = usePokerStore((state) => state.logout);
-  const isMockMode = usePokerStore((state) => state.isMockMode);
-  const setMockMode = usePokerStore((state) => state.setMockMode);
   const isConnected = usePokerStore((state) => state.isConnected);
   const soundEnabled = usePokerStore((state) => state.soundEnabled);
   const toggleSound = usePokerStore((state) => state.toggleSound);
@@ -130,25 +128,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onCreateRoomClick }) => {
             </button>
           </div>
 
-          {/* Mode Switcher: Live / Mock */}
-          <button
-            type="button"
-            onClick={() => setMockMode(!isMockMode)}
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-              isMockMode
-                ? 'bg-amber-950/40 text-amber-300 border-amber-600/40 hover:bg-amber-900/50'
-                : isConnected
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-600/40 hover:bg-emerald-900/50'
-                : 'bg-rose-950/40 text-rose-300 border-rose-600/40 hover:bg-rose-900/50'
+          {/* Real-time Live Server Connection Indicator */}
+          <div
+            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+              isConnected
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-600/40'
+                : 'bg-rose-950/40 text-rose-300 border-rose-600/40'
             }`}
-            title="Toggle Mock vs Live Backend"
+            title={isConnected ? 'Connected to Poker WebSocket' : 'Connecting or disconnected from Poker WebSocket'}
           >
-            {isMockMode ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <span>Mock Mode</span>
-              </>
-            ) : isConnected ? (
+            {isConnected ? (
               <>
                 <Wifi className="w-3 h-3 text-emerald-400" />
                 <span>Live Server</span>
@@ -159,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCreateRoomClick }) => {
                 <span>Offline</span>
               </>
             )}
-          </button>
+          </div>
 
           {/* Auth / Profile Area */}
           {auth.isAuthenticated ? (

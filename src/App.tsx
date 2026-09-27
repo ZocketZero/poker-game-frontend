@@ -5,13 +5,12 @@ import { AuthPage } from './pages/AuthPage';
 import { Header } from './components/layout/Header';
 import { PokerTable } from './components/poker/PokerTable';
 import { ActionBar } from './components/poker/ActionBar';
-import { DevSimulatorToolbar } from './components/dev/DevSimulatorToolbar';
 import { AuthModal } from './components/auth/AuthModal';
 import { LobbyModal } from './components/lobby/LobbyModal';
 import { usePokerSocket } from './hooks/usePokerSocket';
 
 export const App: React.FC = () => {
-  // Initialize native WebSocket hook (connects when mockMode is false and token is present)
+  // Initialize native WebSocket hook
   usePokerSocket();
 
   const currentView = usePokerStore((state) => state.currentView);
@@ -70,9 +69,6 @@ export const App: React.FC = () => {
 
       {/* Interactive Bottom Action Bar */}
       <ActionBar />
-
-      {/* Developer Testing / Simulation Toolbar */}
-      <DevSimulatorToolbar />
 
       {/* Modals for Auth and Lobby */}
       <AuthModal />

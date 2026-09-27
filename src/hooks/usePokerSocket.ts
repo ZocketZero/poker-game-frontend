@@ -6,7 +6,6 @@ import { apiClient } from '../services/apiClient';
 export function usePokerSocket() {
   const [status, setStatus] = useState<WsStatus>('disconnected');
 
-  const isMockMode = usePokerStore((state) => state.isMockMode);
   const auth = usePokerStore((state) => state.auth);
   const setIsConnected = usePokerStore((state) => state.setIsConnected);
 
@@ -21,8 +20,8 @@ export function usePokerSocket() {
   const applyServerError = usePokerStore((state) => state.applyServerError);
 
   useEffect(() => {
-    // In Mock Mode or without token, do not connect
-    if (isMockMode || !auth.token) {
+    // If without token, do not connect
+    if (!auth.token) {
       setIsConnected(false);
       setStatus('disconnected');
       pokerWsClient.disconnect();
@@ -92,7 +91,6 @@ export function usePokerSocket() {
       pokerWsClient.disconnect();
     };
   }, [
-    isMockMode,
     auth.token,
     setIsConnected,
     applyTableState,

@@ -13,22 +13,19 @@ interface PlayerSeatProps {
 
 export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHero = false }) => {
   const seatPlayer = usePokerStore((state) => state.seatPlayer);
-  const isMockMode = usePokerStore((state) => state.isMockMode);
   const auth = usePokerStore((state) => state.auth);
   const setIsAuthOpen = usePokerStore((state) => state.setIsAuthOpen);
   const currentTableId = usePokerStore((state) => state.currentTableId);
   const setIsLobbyOpen = usePokerStore((state) => state.setIsLobbyOpen);
 
   const handleSitClick = () => {
-    if (!isMockMode) {
-      if (!auth.isAuthenticated) {
-        setIsAuthOpen(true);
-        return;
-      }
-      if (!currentTableId) {
-        setIsLobbyOpen(true);
-        return;
-      }
+    if (!auth.isAuthenticated) {
+      setIsAuthOpen(true);
+      return;
+    }
+    if (!currentTableId) {
+      setIsLobbyOpen(true);
+      return;
     }
     seatPlayer(seatIndex);
   };

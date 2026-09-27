@@ -6,7 +6,6 @@ import {
   Palette,
   Wifi,
   WifiOff,
-  RefreshCw,
   RotateCw,
   Users,
   Trophy,
@@ -20,13 +19,10 @@ import {
 export const Header: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
   const isConnected = usePokerStore((state) => state.isConnected);
-  const isMockMode = usePokerStore((state) => state.isMockMode);
-  const setMockMode = usePokerStore((state) => state.setMockMode);
   const soundEnabled = usePokerStore((state) => state.soundEnabled);
   const toggleSound = usePokerStore((state) => state.toggleSound);
   const fourColorDeck = usePokerStore((state) => state.fourColorDeck);
   const toggleFourColorDeck = usePokerStore((state) => state.toggleFourColorDeck);
-  const resetGame = usePokerStore((state) => state.resetGame);
   const tableOrientation = usePokerStore((state) => state.tableOrientation);
   const toggleOrientation = usePokerStore((state) => state.toggleOrientation);
   const setMaxSeats = usePokerStore((state) => state.setMaxSeats);
@@ -82,7 +78,7 @@ export const Header: React.FC = () => {
           </button>
 
           {/* Start Hand button in Live Mode */}
-          {!isMockMode && currentTableId && !gameState.isStarted && (
+          {currentTableId && !gameState.isStarted && (
             <button
               type="button"
               onClick={startHand}
@@ -135,24 +131,16 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {/* Mock Mode vs Live Indicator */}
-          <button
-            onClick={() => setMockMode(!isMockMode)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
-              isMockMode
-                ? 'bg-amber-950/40 text-amber-300 border-amber-600/40 hover:bg-amber-900/50'
-                : isConnected
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-600/40 hover:bg-emerald-900/50'
-                : 'bg-rose-950/40 text-rose-300 border-rose-600/40 hover:bg-rose-900/50'
+          {/* Live Server Connection Indicator */}
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              isConnected
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-600/40'
+                : 'bg-rose-950/40 text-rose-300 border-rose-600/40'
             }`}
-            title="Click to toggle between Mock Mode and Live Backend"
+            title={isConnected ? 'Connected to Poker WebSocket' : 'Disconnected from Poker WebSocket'}
           >
-            {isMockMode ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="hidden sm:inline">Mock Mode</span>
-              </>
-            ) : isConnected ? (
+            {isConnected ? (
               <>
                 <Wifi className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="hidden sm:inline">Live Server</span>
@@ -163,7 +151,7 @@ export const Header: React.FC = () => {
                 <span className="hidden sm:inline">Offline</span>
               </>
             )}
-          </button>
+          </div>
 
           {/* 4-Color Deck Toggle */}
           <button
@@ -215,17 +203,6 @@ export const Header: React.FC = () => {
             <Users className="w-3.5 h-3.5 text-amber-400" />
             <span className="text-[9px] font-bold uppercase">{gameState.maxSeats || 6}P</span>
           </button>
-
-          {/* Reset Hand (only in mock mode) */}
-          {isMockMode && (
-            <button
-              onClick={resetGame}
-              className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-slate-700 transition-all"
-              title="Reset Mock Hand"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </header>
 

@@ -5,7 +5,6 @@ import { ActionType } from '../../types/poker';
 export const ActionBar: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
   const currentUserId = usePokerStore((state) => state.currentUserId);
-  const isMockMode = usePokerStore((state) => state.isMockMode);
   const dispatchPlayerAction = usePokerStore((state) => state.dispatchPlayerAction);
 
   // Find hero player
@@ -13,17 +12,17 @@ export const ActionBar: React.FC = () => {
   const hero = heroIndex !== -1 ? gameState.players[heroIndex] : null;
 
   const isHeroTurn = hero?.isCurrentTurn ?? false;
-  const legal = !isMockMode ? gameState.serverLegalActions : null;
+  const legal = gameState.serverLegalActions;
 
   // Derive legal action flags & ranges
-  const canFold = legal ? legal.can_fold : true;
-  const canCheck = legal ? legal.can_check : (gameState.currentHighestBet - (hero?.currentBet || 0)) === 0;
-  const canCall = legal ? legal.can_call : !canCheck;
-  const callAmount = legal ? legal.call_amount : Math.max(0, gameState.currentHighestBet - (hero?.currentBet || 0));
+  const canFold = legal ? legal.can_fold : isHeroTurn;
+  const canCheck = legal ? legal.can_check : false;
+  const canCall = legal ? legal.can_call : false;
+  const callAmount = legal ? legal.call_amount : 0;
 
-  const canBet = legal ? legal.can_bet : (gameState.currentHighestBet === 0);
-  const canRaise = legal ? legal.can_raise : (gameState.currentHighestBet > 0);
-  const canAllIn = legal ? legal.can_all_in : true;
+  const canBet = legal ? legal.can_bet : false;
+  const canRaise = legal ? legal.can_raise : false;
+  const canAllIn = legal ? legal.can_all_in : false;
 
   const minBet = legal
     ? legal.can_raise
@@ -31,7 +30,7 @@ export const ActionBar: React.FC = () => {
       : legal.can_bet
       ? legal.min_bet
       : 0
-    : Math.max(gameState.bigBlind, gameState.currentHighestBet + gameState.minRaise);
+    : gameState.bigBlind;
 
   const maxBet = legal
     ? legal.can_raise
@@ -54,9 +53,7 @@ export const ActionBar: React.FC = () => {
     return (
       <div className="bg-slate-900/90 border-t border-slate-800 p-4 text-center backdrop-blur-md">
         <span className="text-slate-400 text-sm">
-          {isMockMode
-            ? 'Choose an open seat on the table to join the action.'
-            : 'Join a table seat from the lobby to participate.'}
+          Join a table seat from the lobby or table to participate.
         </span>
       </div>
     );
