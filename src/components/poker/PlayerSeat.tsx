@@ -13,12 +13,31 @@ interface PlayerSeatProps {
 
 export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHero = false }) => {
   const seatPlayer = usePokerStore((state) => state.seatPlayer);
+  const isMockMode = usePokerStore((state) => state.isMockMode);
+  const auth = usePokerStore((state) => state.auth);
+  const setIsAuthOpen = usePokerStore((state) => state.setIsAuthOpen);
+  const currentTableId = usePokerStore((state) => state.currentTableId);
+  const setIsLobbyOpen = usePokerStore((state) => state.setIsLobbyOpen);
+
+  const handleSitClick = () => {
+    if (!isMockMode) {
+      if (!auth.isAuthenticated) {
+        setIsAuthOpen(true);
+        return;
+      }
+      if (!currentTableId) {
+        setIsLobbyOpen(true);
+        return;
+      }
+    }
+    seatPlayer(seatIndex);
+  };
 
   if (!player) {
     return (
       <div className="flex flex-col items-center justify-center">
         <button
-          onClick={() => seatPlayer(seatIndex)}
+          onClick={handleSitClick}
           className="group w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-emerald-600/40 bg-emerald-950/30 hover:bg-emerald-900/40 hover:border-amber-400/70 flex flex-col items-center justify-center text-emerald-400/80 hover:text-amber-300 transition-all duration-200 shadow-inner"
           title={`Seat ${seatIndex + 1} - Click to sit`}
         >

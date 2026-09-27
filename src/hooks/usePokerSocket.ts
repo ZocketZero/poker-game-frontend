@@ -1,53 +1,114 @@
 import { useEffect, useState } from 'react';
-import { socketService, SocketStatus } from '../services/socketService';
+import { pokerWsClient, WsStatus } from '../services/pokerWebSocket';
 import { usePokerStore } from '../store/usePokerStore';
-import confetti from 'canvas-confetti';
+import { apiClient } from '../services/apiClient';
 
-export function usePokerSocket(serverUrl?: string) {
-  const [status, setStatus] = useState<SocketStatus>('disconnected');
-  const setGameState = usePokerStore((state) => state.setGameState);
-  const setIsConnected = usePokerStore((state) => state.setIsConnected);
+export function usePokerSocket() {
+  const [status, setStatus] = useState<WsStatus>('disconnected');
+
   const isMockMode = usePokerStore((state) => state.isMockMode);
+  const auth = usePokerStore((state) => state.auth);
+  const setIsConnected = usePokerStore((state) => state.setIsConnected);
+
+  const applyTableState = usePokerStore((state) => state.applyTableState);
+  const applyHoleCards = usePokerStore((state) => state.applyHoleCards);
+  const applyYourTurn = usePokerStore((state) => state.applyYourTurn);
+  const applyGameEvent = usePokerStore((state) => state.applyGameEvent);
+  const applyPlayerJoined = usePokerStore((state) => state.applyPlayerJoined);
+  const applyPlayerLeft = usePokerStore((state) => state.applyPlayerLeft);
+  const applyPlayerEliminated = usePokerStore((state) => state.applyPlayerEliminated);
+  const applyTournamentEnded = usePokerStore((state) => state.applyTournamentEnded);
+  const applyServerError = usePokerStore((state) => state.applyServerError);
 
   useEffect(() => {
-    // If mock mode is active, don't initiate socket connection
-    if (isMockMode || !serverUrl) {
+    // In Mock Mode or without token, do not connect
+    if (isMockMode || !auth.token) {
       setIsConnected(false);
       setStatus('disconnected');
+      pokerWsClient.disconnect();
       return;
     }
 
-    socketService.connect(serverUrl);
+    const wsUrl = apiClient.getWsUrl();
+    pokerWsClient.connect(wsUrl, auth.token);
 
-    const unsubStatus = socketService.onStatusChange((newStatus) => {
+    const unsubStatus = pokerWsClient.onStatusChange((newStatus) => {
       setStatus(newStatus);
       setIsConnected(newStatus === 'connected');
     });
 
-    const unsubGameState = socketService.onGameState((newState) => {
-      setGameState(newState);
+    const unsubTableList = pokerWsClient.onTableList((msg) => {
+      usePokerStore.setState({ tables: msg.tables });
     });
 
-    const unsubWinner = socketService.onWinner((result) => {
-      console.log('[PokerSocket] Winner declared:', result);
-      confetti({
-        particleCount: 150,
-        spread: 90,
-        origin: { y: 0.6 },
-      });
+    const unsubTableState = pokerWsClient.onTableState((msg) => {
+      applyTableState(msg);
+    });
+
+    const unsubHoleCards = pokerWsClient.onHoleCards((msg) => {
+      applyHoleCards(msg.cards);
+    });
+
+    const unsubYourTurn = pokerWsClient.onYourTurn((msg) => {
+      applyYourTurn(msg.legal_actions);
+    });
+
+    const unsubGameEvent = pokerWsClient.onGameEvent((msg) => {
+      applyGameEvent(msg.event);
+    });
+
+    const unsubPlayerJoined = pokerWsClient.onPlayerJoined((msg) => {
+      applyPlayerJoined(msg);
+    });
+
+    const unsubPlayerLeft = pokerWsClient.onPlayerLeft((msg) => {
+      applyPlayerLeft(msg);
+    });
+
+    const unsubPlayerEliminated = pokerWsClient.onPlayerEliminated((msg) => {
+      applyPlayerEliminated(msg);
+    });
+
+    const unsubTournamentEnded = pokerWsClient.onTournamentEnded((msg) => {
+      applyTournamentEnded(msg);
+    });
+
+    const unsubError = pokerWsClient.onError((msg) => {
+      applyServerError(msg.message);
     });
 
     return () => {
       unsubStatus();
-      unsubGameState();
-      unsubWinner();
-      socketService.disconnect();
+      unsubTableList();
+      unsubTableState();
+      unsubHoleCards();
+      unsubYourTurn();
+      unsubGameEvent();
+      unsubPlayerJoined();
+      unsubPlayerLeft();
+      unsubPlayerEliminated();
+      unsubTournamentEnded();
+      unsubError();
+      pokerWsClient.disconnect();
     };
-  }, [serverUrl, isMockMode, setGameState, setIsConnected]);
+  }, [
+    isMockMode,
+    auth.token,
+    setIsConnected,
+    applyTableState,
+    applyHoleCards,
+    applyYourTurn,
+    applyGameEvent,
+    applyPlayerJoined,
+    applyPlayerLeft,
+    applyPlayerEliminated,
+    applyTournamentEnded,
+    applyServerError,
+  ]);
 
   return {
     status,
     isConnected: status === 'connected',
-    socketService,
+    pokerWsClient,
   };
 }

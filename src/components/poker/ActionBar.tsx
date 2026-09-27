@@ -5,6 +5,7 @@ import { ActionType } from '../../types/poker';
 export const ActionBar: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
   const currentUserId = usePokerStore((state) => state.currentUserId);
+  const isMockMode = usePokerStore((state) => state.isMockMode);
   const dispatchPlayerAction = usePokerStore((state) => state.dispatchPlayerAction);
 
   // Find hero player
@@ -12,27 +13,51 @@ export const ActionBar: React.FC = () => {
   const hero = heroIndex !== -1 ? gameState.players[heroIndex] : null;
 
   const isHeroTurn = hero?.isCurrentTurn ?? false;
-  const highestBet = gameState.currentHighestBet;
-  const heroCurrentBet = hero?.currentBet || 0;
-  const callAmount = Math.max(0, highestBet - heroCurrentBet);
-  const canCheck = callAmount === 0;
+  const legal = !isMockMode ? gameState.serverLegalActions : null;
 
-  const minBet = Math.max(gameState.bigBlind, highestBet + gameState.minRaise);
-  const maxBet = (hero?.chips || 0) + heroCurrentBet;
+  // Derive legal action flags & ranges
+  const canFold = legal ? legal.can_fold : true;
+  const canCheck = legal ? legal.can_check : (gameState.currentHighestBet - (hero?.currentBet || 0)) === 0;
+  const canCall = legal ? legal.can_call : !canCheck;
+  const callAmount = legal ? legal.call_amount : Math.max(0, gameState.currentHighestBet - (hero?.currentBet || 0));
+
+  const canBet = legal ? legal.can_bet : (gameState.currentHighestBet === 0);
+  const canRaise = legal ? legal.can_raise : (gameState.currentHighestBet > 0);
+  const canAllIn = legal ? legal.can_all_in : true;
+
+  const minBet = legal
+    ? legal.can_raise
+      ? legal.min_raise
+      : legal.can_bet
+      ? legal.min_bet
+      : 0
+    : Math.max(gameState.bigBlind, gameState.currentHighestBet + gameState.minRaise);
+
+  const maxBet = legal
+    ? legal.can_raise
+      ? legal.max_raise
+      : legal.can_bet
+      ? legal.max_bet
+      : (hero?.chips || 0) + (hero?.currentBet || 0)
+    : (hero?.chips || 0) + (hero?.currentBet || 0);
 
   const [raiseAmount, setRaiseAmount] = useState<number>(minBet);
 
   // Synchronize default raise value when turn becomes hero's
   useEffect(() => {
-    if (isHeroTurn) {
+    if (isHeroTurn && (canBet || canRaise)) {
       setRaiseAmount(Math.min(minBet, maxBet));
     }
-  }, [isHeroTurn, minBet, maxBet]);
+  }, [isHeroTurn, minBet, maxBet, canBet, canRaise]);
 
   if (!hero) {
     return (
       <div className="bg-slate-900/90 border-t border-slate-800 p-4 text-center backdrop-blur-md">
-        <span className="text-slate-400 text-sm">Choose an open seat on the table to join the action.</span>
+        <span className="text-slate-400 text-sm">
+          {isMockMode
+            ? 'Choose an open seat on the table to join the action.'
+            : 'Join a table seat from the lobby to participate.'}
+        </span>
       </div>
     );
   }
@@ -45,9 +70,9 @@ export const ActionBar: React.FC = () => {
     if (type === 'min') {
       setRaiseAmount(minBet);
     } else if (type === '2.5x') {
-      setRaiseAmount(Math.min(maxBet, Math.round(gameState.bigBlind * 2.5)));
+      setRaiseAmount(Math.min(maxBet, Math.max(minBet, Math.round(gameState.bigBlind * 2.5))));
     } else if (type === '3x') {
-      setRaiseAmount(Math.min(maxBet, Math.round(gameState.bigBlind * 3)));
+      setRaiseAmount(Math.min(maxBet, Math.max(minBet, Math.round(gameState.bigBlind * 3))));
     } else if (type === 'pot') {
       const potTotal = gameState.pots.reduce((sum, p) => sum + p.amount, 0);
       setRaiseAmount(Math.min(maxBet, Math.max(minBet, potTotal + callAmount)));
@@ -90,102 +115,133 @@ export const ActionBar: React.FC = () => {
       ) : (
         <div className="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-1.5 sm:gap-3">
           {/* Quick Presets & Bet Slider */}
-          <div className="flex-1 w-full flex flex-col gap-1 sm:gap-1.5">
-            <div className="flex items-center justify-between gap-1">
+          {(canBet || canRaise) && maxBet > minBet && (
+            <div className="flex-1 w-full flex flex-col gap-1 sm:gap-1.5">
+              <div className="flex items-center justify-between gap-1">
+                <button
+                  type="button"
+                  onClick={() => handlePreset('min')}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  Min (${minBet})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('2.5x')}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  2.5x
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('3x')}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  3x
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('pot')}
+                  className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  Pot
+                </button>
+                {canAllIn && (
+                  <button
+                    type="button"
+                    onClick={() => handlePreset('allin')}
+                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded bg-rose-900/60 hover:bg-rose-800 text-rose-300 border border-rose-700/50 transition-colors"
+                  >
+                    All-In
+                  </button>
+                )}
+              </div>
+
+              {/* Slider */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <input
+                  type="range"
+                  min={minBet}
+                  max={maxBet}
+                  step={gameState.minRaise || gameState.smallBlind || 1}
+                  value={raiseAmount}
+                  onChange={(e) => setRaiseAmount(Number(e.target.value))}
+                  className="w-full h-1.5 sm:h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <span className="text-xs sm:text-sm font-black text-amber-400 min-w-[55px] sm:min-w-[70px] text-right">
+                  ${raiseAmount}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons: Fold, Check/Call, Bet/Raise, AllIn */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 w-full md:w-auto">
+            {/* Fold */}
+            {canFold && (
               <button
                 type="button"
-                onClick={() => handlePreset('min')}
-                className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                onClick={() => handleAction('fold')}
+                className="flex-1 md:flex-initial px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-b from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-bold text-xs sm:text-sm shadow-md border border-rose-500/30 transition-transform active:scale-95"
               >
-                Min (${minBet})
+                Fold
               </button>
+            )}
+
+            {/* Check */}
+            {canCheck && (
               <button
                 type="button"
-                onClick={() => handlePreset('2.5x')}
-                className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                onClick={() => handleAction('check')}
+                className="flex-1 md:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-transform active:scale-95 bg-gradient-to-b from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white border-emerald-500/30"
               >
-                2.5x
+                Check
               </button>
+            )}
+
+            {/* Call */}
+            {!canCheck && canCall && (
               <button
                 type="button"
-                onClick={() => handlePreset('3x')}
-                className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                onClick={() => handleAction('call')}
+                className="flex-1 md:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-transform active:scale-95 bg-gradient-to-b from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white border-blue-500/30"
               >
-                3x
+                Call ${callAmount}
               </button>
+            )}
+
+            {/* Bet / Raise */}
+            {(canBet || canRaise) && (
               <button
                 type="button"
-                onClick={() => handlePreset('pot')}
-                className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                onClick={() =>
+                  raiseAmount >= maxBet && canAllIn
+                    ? handleAction('all-in')
+                    : handleAction(canBet ? 'bet' : 'raise', raiseAmount)
+                }
+                className="flex-1 md:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black text-xs sm:text-sm shadow-md border border-amber-400/50 transition-transform active:scale-95"
               >
-                Pot
+                {raiseAmount >= maxBet && canAllIn ? (
+                  'ALL-IN'
+                ) : (
+                  <>
+                    <span>{canBet ? 'Bet' : 'Raise'}</span>
+                    <span>${raiseAmount}</span>
+                  </>
+                )}
               </button>
+            )}
+
+            {/* Separate All-in button if Bet/Raise slider is not shown but All-in is legal */}
+            {canAllIn && !canBet && !canRaise && (
               <button
                 type="button"
-                onClick={() => handlePreset('allin')}
-                className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded bg-rose-900/60 hover:bg-rose-800 text-rose-300 border border-rose-700/50 transition-colors"
+                onClick={() => handleAction('all-in')}
+                className="flex-1 md:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-transform active:scale-95 bg-rose-600 hover:bg-rose-500 text-white border-rose-400/50"
               >
                 All-In
               </button>
-            </div>
-
-            {/* Slider */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <input
-                type="range"
-                min={minBet}
-                max={maxBet}
-                step={gameState.minRaise}
-                value={raiseAmount}
-                onChange={(e) => setRaiseAmount(Number(e.target.value))}
-                className="w-full h-1.5 sm:h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              />
-              <span className="text-xs sm:text-sm font-black text-amber-400 min-w-[55px] sm:min-w-[70px] text-right">
-                ${raiseAmount}
-              </span>
-            </div>
-          </div>
-
-          {/* Action Buttons: Fold, Check/Call, Bet/Raise */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 w-full md:w-auto">
-            {/* Fold */}
-            <button
-              onClick={() => handleAction('fold')}
-              className="flex-1 md:flex-initial px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-b from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-bold text-xs sm:text-sm shadow-md border border-rose-500/30 transition-transform active:scale-95"
-            >
-              Fold
-            </button>
-
-            {/* Check / Call */}
-            <button
-              onClick={() => handleAction(canCheck ? 'check' : 'call')}
-              className={`flex-1 md:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-transform active:scale-95 ${
-                canCheck
-                  ? 'bg-gradient-to-b from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white border-emerald-500/30'
-                  : 'bg-gradient-to-b from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white border-blue-500/30'
-              }`}
-            >
-              {canCheck ? 'Check' : `Call $${callAmount}`}
-            </button>
-
-            {/* Bet / Raise */}
-            <button
-              onClick={() =>
-                raiseAmount >= maxBet
-                  ? handleAction('all-in')
-                  : handleAction(highestBet === 0 ? 'bet' : 'raise', raiseAmount)
-              }
-              className="flex-1 md:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black text-xs sm:text-sm shadow-md border border-amber-400/50 transition-transform active:scale-95"
-            >
-              {raiseAmount >= maxBet ? (
-                'ALL-IN'
-              ) : (
-                <>
-                  <span>{highestBet === 0 ? 'Bet' : 'Raise'}</span>
-                  <span>${raiseAmount}</span>
-                </>
-              )}
-            </button>
+            )}
           </div>
         </div>
       )}

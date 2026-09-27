@@ -45,6 +45,9 @@ export interface WinningHand {
   amountWon: number;
 }
 
+export * from './backend';
+import { GameMode, LegalActions } from './backend';
+
 export interface GameState {
   tableId: string;
   tableName: string;
@@ -57,9 +60,12 @@ export interface GameState {
   dealerSeat: number;
   minRaise: number;
   currentHighestBet: number;
-  players: (Player | null)[]; // Max 6 or 9 seats
+  players: (Player | null)[]; // Max 2-10 seats
   maxSeats: number;
   winningHand?: WinningHand | null;
+  gameMode?: GameMode;
+  isStarted?: boolean;
+  serverLegalActions?: LegalActions | null;
 }
 
 export type ActionType = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all-in';

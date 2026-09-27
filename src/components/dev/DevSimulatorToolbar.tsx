@@ -193,8 +193,8 @@ export const DevSimulatorToolbar: React.FC = () => {
         {/* Live Socket Info Box */}
         <div className="mt-2 p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[10px] text-slate-400 space-y-1">
           <div className="font-semibold text-slate-300">Backend Connection</div>
-          <div>Default Socket URL: <code className="text-amber-400">http://localhost:4000</code></div>
-          <div>Configure in: <code className="text-blue-300">src/hooks/usePokerSocket.ts</code></div>
+          <div>REST Base: <code className="text-amber-400">http://127.0.0.1:8080</code></div>
+          <div>WebSocket: <code className="text-blue-300">ws://127.0.0.1:8080/ws?token=JWT</code></div>
         </div>
       </div>
     </aside>

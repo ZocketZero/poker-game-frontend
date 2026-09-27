@@ -3,11 +3,13 @@ import { Header } from './components/layout/Header';
 import { PokerTable } from './components/poker/PokerTable';
 import { ActionBar } from './components/poker/ActionBar';
 import { DevSimulatorToolbar } from './components/dev/DevSimulatorToolbar';
+import { AuthModal } from './components/auth/AuthModal';
+import { LobbyModal } from './components/lobby/LobbyModal';
 import { usePokerSocket } from './hooks/usePokerSocket';
 
 export const App: React.FC = () => {
-  // Initialize Socket.io connection hook (connects when mockMode is false)
-  usePokerSocket('http://localhost:4000');
+  // Initialize native WebSocket hook (connects when mockMode is false and token is present)
+  usePokerSocket();
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between bg-[#07090e] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#07090e] to-black text-slate-100">
@@ -24,6 +26,10 @@ export const App: React.FC = () => {
 
       {/* Developer Testing / Simulation Toolbar */}
       <DevSimulatorToolbar />
+
+      {/* Modals for Auth and Lobby */}
+      <AuthModal />
+      <LobbyModal />
     </div>
   );
 };
