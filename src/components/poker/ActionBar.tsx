@@ -83,27 +83,42 @@ export const ActionBar: React.FC = () => {
   return (
     <div className="w-full shrink-0 bg-slate-950/95 border-t border-slate-800/80 px-2 sm:px-4 py-1.5 sm:py-2.5 backdrop-blur-lg flex flex-col items-center gap-1.5 sm:gap-2.5 select-none z-30">
       {!isHeroTurn ? (
-        <div className="flex items-center justify-between w-full max-w-4xl py-1 sm:py-1.5 px-3 sm:px-4 rounded-lg sm:rounded-xl bg-slate-900/70 border border-slate-800">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
+        <div className="flex items-center justify-between w-full max-w-4xl py-1 sm:py-1.5 px-3 sm:px-4 rounded-lg sm:rounded-xl bg-slate-900/70 border border-slate-800 animate-fade-in">
+          {/* Left: whose turn */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500"></span>
             </span>
-            <span className="text-xs sm:text-sm text-slate-300">
+            <span className="text-xs sm:text-sm text-slate-300 truncate">
               Waiting for{' '}
               <strong className="text-amber-400 font-semibold">
                 {currentTurnPlayer ? currentTurnPlayer.name : 'players'}
               </strong>
-              ...
+              {currentTurnPlayer?.isSmallBlind && (
+                <span className="ml-1 text-[9px] sm:text-[11px] bg-blue-600/30 text-blue-300 border border-blue-600/40 px-1 rounded-full font-semibold">SB</span>
+              )}
+              {currentTurnPlayer?.isBigBlind && (
+                <span className="ml-1 text-[9px] sm:text-[11px] bg-purple-600/30 text-purple-300 border border-purple-600/40 px-1 rounded-full font-semibold">BB</span>
+              )}
+              <span className="text-slate-500">...</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-4 text-[10px] sm:text-xs text-slate-400">
-            <label className="flex items-center gap-1 cursor-pointer hover:text-slate-200">
+          {/* Right: blind info + pre-action */}
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="text-blue-400 font-semibold">SB</span>
+              <span>${gameState.smallBlind}</span>
+              <span className="opacity-40">·</span>
+              <span className="text-purple-400 font-semibold">BB</span>
+              <span>${gameState.bigBlind}</span>
+            </span>
+            <label className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-400 cursor-pointer hover:text-slate-200">
               <input type="checkbox" className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0 scale-90" />
               <span>Check/Fold</span>
             </label>
-            <label className="flex items-center gap-1 cursor-pointer hover:text-slate-200">
+            <label className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-400 cursor-pointer hover:text-slate-200">
               <input type="checkbox" className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0 scale-90" />
               <span>Call Any</span>
             </label>

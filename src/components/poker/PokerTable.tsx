@@ -3,7 +3,7 @@ import { usePokerStore } from '../../store/usePokerStore';
 import { PlayerSeat } from './PlayerSeat';
 import { CommunityCards } from './CommunityCards';
 import { PotDisplay } from './PotDisplay';
-import { Trophy } from 'lucide-react';
+import { Trophy, Clock } from 'lucide-react';
 
 /**
  * Calculates (x, y) coordinates as percentages around the table perimeter
@@ -91,6 +91,16 @@ export const calculateSeatCoordinates = (
   }
 };
 
+/** Stage label mapping for the HUD */
+const STAGE_LABELS: Record<string, string> = {
+  waiting: 'Waiting',
+  preflop: 'Pre-Flop',
+  flop: 'Flop',
+  turn: 'Turn',
+  river: 'River',
+  showdown: 'Showdown',
+};
+
 export const PokerTable: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
   const currentUserId = usePokerStore((state) => state.currentUserId);
@@ -115,7 +125,22 @@ export const PokerTable: React.FC = () => {
     };
   }, []);
 
-  const { players, communityCards, pots, tableName, smallBlind, bigBlind, winningHand, maxSeats = 6 } = gameState;
+  const {
+    players,
+    communityCards,
+    pots,
+    tableName,
+    smallBlind,
+    bigBlind,
+    winningHand,
+    maxSeats = 6,
+    stage,
+    currentTurnSeat,
+  } = gameState;
+
+  const currentTurnPlayer = currentTurnSeat !== null ? players[currentTurnSeat] : null;
+  const heroPlayer = players.find((p) => p?.id === currentUserId) ?? null;
+  const isHeroTurn = heroPlayer?.isCurrentTurn ?? false;
 
   // Determine effective orientation mode
   const isVertical =
@@ -189,6 +214,7 @@ export const PokerTable: React.FC = () => {
               {/* Table Watermark & Subtle Pattern */}
               <div className="absolute inset-0 bg-[radial-gradient(#2e7d32_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
 
+              {/* ── Table Info Watermark (top) ── */}
               <div
                 className={`absolute text-center pointer-events-none opacity-40 ${
                   isVertical ? 'top-[20%]' : 'top-[22%]'
@@ -202,21 +228,58 @@ export const PokerTable: React.FC = () => {
                 </p>
               </div>
 
+              {/* ── Live Blind / Stage HUD (bottom of felt, above pot) ── */}
+              <div className="absolute bottom-[30%] left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none z-10">
+                {/* Stage pill */}
+                {stage !== 'waiting' && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-black/50 border border-emerald-600/40 text-[8px] sm:text-[10px] text-emerald-300 font-bold uppercase tracking-wider animate-fade-in">
+                    {STAGE_LABELS[stage] ?? stage}
+                  </span>
+                )}
+                {/* Blinds pill */}
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/50 border border-slate-600/40 text-[8px] sm:text-[10px] text-slate-300 font-semibold animate-fade-in">
+                  <span className="text-blue-400 font-bold">SB</span>
+                  <span>${smallBlind}</span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-purple-400 font-bold">BB</span>
+                  <span>${bigBlind}</span>
+                </span>
+              </div>
+
+              {/* ── Whose Turn HUD ── */}
+              {currentTurnPlayer && stage !== 'waiting' && (
+                <div
+                  key={currentTurnPlayer.id}
+                  className={`absolute top-[28%] left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border shadow-lg backdrop-blur-sm pointer-events-none z-10 animate-fade-in-up ${
+                    isHeroTurn
+                      ? 'bg-amber-500/90 border-amber-300 text-slate-950'
+                      : 'bg-slate-900/85 border-amber-500/60 text-amber-300'
+                  }`}
+                >
+                  <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                  <span className="text-[9px] sm:text-[11px] font-bold truncate max-w-[100px] sm:max-w-[140px]">
+                    {isHeroTurn ? '⚡ Your Turn!' : `${currentTurnPlayer.name}'s turn`}
+                  </span>
+                </div>
+              )}
+
               {/* Table Center: Pot and Community Cards */}
               <div className="relative z-10 flex flex-col items-center gap-1.5 sm:gap-2.5">
                 <PotDisplay pots={pots} />
                 <CommunityCards cards={communityCards} />
               </div>
 
-              {/* Winner Announcement Banner */}
+              {/* ── Winner Announcement Banner ── */}
               {winningHand && (
-                <div className="absolute z-30 bottom-1/4 bg-slate-950/90 border border-amber-400 sm:border-2 px-3 sm:px-6 py-1 sm:py-2 rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-md animate-bounce flex items-center gap-2 sm:gap-3">
-                  <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-amber-400" />
-                  <div className="text-center">
-                    <div className="text-[9px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider">
-                      Winner Takes ${winningHand.amountWon}
+                <div className="absolute z-30 bottom-1/4 animate-winner-in">
+                  <div className="bg-slate-950/95 border-2 border-amber-400 px-4 sm:px-7 py-1.5 sm:py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2 sm:gap-3">
+                    <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
+                    <div className="text-center">
+                      <div className="text-[9px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider">
+                        Winner Takes ${winningHand.amountWon.toLocaleString()}
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-white">{winningHand.handName}</div>
                     </div>
-                    <div className="text-xs sm:text-sm font-black text-white">{winningHand.handName}</div>
                   </div>
                 </div>
               )}

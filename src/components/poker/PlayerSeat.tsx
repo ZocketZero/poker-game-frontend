@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Player } from '../../types/poker';
 import { Card } from './Card';
 import { ChipStack } from './ChipStack';
@@ -17,6 +17,47 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
   const setIsAuthOpen = usePokerStore((state) => state.setIsAuthOpen);
   const currentTableId = usePokerStore((state) => state.currentTableId);
   const setIsLobbyOpen = usePokerStore((state) => state.setIsLobbyOpen);
+
+  // Track chip animation (flash when chip value changes)
+  const prevChipsRef = useRef<number>(player?.chips ?? 0);
+  const [chipChanged, setChipChanged] = useState(false);
+  // Track card deal animation per-card
+  const [cardAnimated, setCardAnimated] = useState<boolean[]>([false, false]);
+  const prevCardCountRef = useRef<number>(player?.cards?.length ?? 0);
+
+  useEffect(() => {
+    const curr = player?.chips ?? 0;
+    if (curr !== prevChipsRef.current && prevChipsRef.current !== 0) {
+      setChipChanged(true);
+      const t = setTimeout(() => setChipChanged(false), 600);
+      prevChipsRef.current = curr;
+      return () => clearTimeout(t);
+    }
+    prevChipsRef.current = curr;
+  }, [player?.chips]);
+
+  useEffect(() => {
+    const currCount = player?.cards?.length ?? 0;
+    const prevCount = prevCardCountRef.current;
+    if (currCount === 0) {
+      setCardAnimated([false, false]);
+      prevCardCountRef.current = 0;
+      return;
+    }
+    if (currCount > prevCount) {
+      for (let i = prevCount; i < currCount; i++) {
+        const delay = i * 150;
+        setTimeout(() => {
+          setCardAnimated((s) => {
+            const next = [...s];
+            next[i] = true;
+            return next;
+          });
+        }, delay);
+      }
+    }
+    prevCardCountRef.current = currCount;
+  }, [player?.cards?.length]);
 
   const handleSitClick = () => {
     if (!auth.isAuthenticated) {
@@ -63,73 +104,96 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
   const isAllIn = status === 'all-in';
 
   return (
-    <div className={`relative flex flex-col items-center select-none ${isFolded ? 'opacity-40 grayscale-[50%]' : ''}`}>
-      {/* Bet Stack floating in front of player towards center */}
+    <div className={`relative flex flex-col items-center select-none transition-opacity duration-500 ${isFolded ? 'opacity-40 grayscale-[60%]' : 'opacity-100'}`}>
+
+      {/* Bet chip stack floating toward table center */}
       {currentBet > 0 && (
-        <div className="absolute -top-5 sm:-top-7 z-20 scale-75 sm:scale-100 origin-bottom animate-fade-in">
+        <div className="absolute -top-5 sm:-top-7 z-20 scale-75 sm:scale-100 origin-bottom animate-chip-pop">
           <ChipStack amount={currentBet} />
         </div>
       )}
 
-      {/* Main Seat Box */}
+      {/* ── Main Seat Box ── */}
       <div
         className={`relative flex items-center gap-1.5 sm:gap-2.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 backdrop-blur-md transition-all duration-300 shadow-xl ${
           isCurrentTurn
-            ? 'border-amber-400 ring-2 sm:ring-4 ring-amber-400/40 shadow-turn-pulse scale-105'
+            ? 'border-amber-400 shadow-turn-pulse scale-105'
             : isHero
             ? 'border-blue-500/80 ring-1 sm:ring-2 ring-blue-500/30'
             : 'border-slate-700/80'
         }`}
+        style={isCurrentTurn ? { animation: 'turnRing 1.8s ease-in-out infinite' } : undefined}
       >
-        {/* Avatar with Turn Ring */}
+        {/* Avatar + turn pulse dot */}
         <div className="relative">
           <img
             src={avatar}
             alt={name}
-            className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-slate-600/60 bg-slate-800 object-cover"
+            className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border bg-slate-800 object-cover transition-all duration-300 ${
+              isCurrentTurn ? 'border-amber-400' : 'border-slate-600/60'
+            }`}
           />
           {isCurrentTurn && (
             <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-amber-500 border border-slate-900"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-amber-500 border border-slate-900" />
             </span>
           )}
         </div>
 
-        {/* Info Column */}
+        {/* Name + Chips */}
         <div className="flex flex-col min-w-[50px] sm:min-w-[65px]">
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <span className="text-[9px] sm:text-xs font-semibold text-slate-100 truncate max-w-[55px] sm:max-w-[80px]">{name}</span>
-            {isHero && <span className="text-[7px] sm:text-[9px] bg-blue-600 text-blue-100 px-0.5 sm:px-1 rounded font-bold">ME</span>}
+            <span className="text-[9px] sm:text-xs font-semibold text-slate-100 truncate max-w-[55px] sm:max-w-[80px]">
+              {name}
+            </span>
+            {isHero && (
+              <span className="text-[7px] sm:text-[9px] bg-blue-600 text-blue-100 px-0.5 sm:px-1 rounded font-bold">
+                ME
+              </span>
+            )}
           </div>
-          <span className="text-[9px] sm:text-xs font-bold text-amber-400 tracking-tight">
+          <span
+            className={`text-[9px] sm:text-xs font-bold tracking-tight transition-all duration-300 ${
+              chipChanged ? 'text-emerald-300 scale-110' : 'text-amber-400'
+            }`}
+          >
             ${chips.toLocaleString()}
           </span>
         </div>
 
-        {/* Badges: Dealer, SB, BB */}
+        {/* ── Badges: Dealer · SB · BB ── */}
         <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 z-10">
           {isDealer && (
-            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-300 text-slate-950 font-black text-[9px] sm:text-[11px] flex items-center justify-center border border-amber-600 shadow-md">
+            <span
+              title="Dealer"
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-300 text-slate-950 font-black text-[9px] sm:text-[11px] flex items-center justify-center border border-amber-600 shadow-md animate-fade-in"
+            >
               D
             </span>
           )}
           {isSmallBlind && (
-            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-500 text-white font-black text-[7px] sm:text-[9px] flex items-center justify-center border border-blue-700 shadow-md">
+            <span
+              title="Small Blind"
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-500 text-white font-black text-[7px] sm:text-[9px] flex items-center justify-center border border-blue-700 shadow-md animate-fade-in"
+            >
               SB
             </span>
           )}
           {isBigBlind && (
-            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-purple-600 text-white font-black text-[7px] sm:text-[9px] flex items-center justify-center border border-purple-800 shadow-md">
+            <span
+              title="Big Blind"
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-purple-600 text-white font-black text-[7px] sm:text-[9px] flex items-center justify-center border border-purple-800 shadow-md animate-fade-in"
+            >
               BB
             </span>
           )}
         </div>
 
-        {/* Action / Status Pill */}
-        {lastAction && (
+        {/* Action / Status pill */}
+        {!isAllIn && lastAction && (
           <div
-            className={`absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-wider border shadow ${
+            className={`absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-wider border shadow animate-fade-in-up whitespace-nowrap ${
               lastAction.type === 'fold'
                 ? 'bg-rose-950/90 text-rose-300 border-rose-600/50'
                 : lastAction.type === 'check'
@@ -144,25 +208,35 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
         )}
 
         {isAllIn && (
-          <div className="absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0 rounded-full text-[8px] sm:text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white border border-rose-300 shadow animate-pulse">
+          <div className="absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0 rounded-full text-[8px] sm:text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white border border-rose-300 shadow animate-pulse whitespace-nowrap">
             ALL-IN
           </div>
         )}
       </div>
 
-      {/* Hole Cards */}
+      {/* ── Hole Cards with deal animation ── */}
       {cards && cards.length > 0 && (
         <div className="flex items-center -space-x-4 mt-1.5 z-10">
           {cards.map((c, i) => (
             <div
               key={i}
-              className={`transform transition-transform duration-200 ${
-                i === 0 ? '-rotate-6 hover:-translate-y-1' : 'rotate-6 hover:-translate-y-1'
-              }`}
+              className={`transform transition-transform duration-200 ${i === 0 ? '-rotate-6' : 'rotate-6'}`}
+              style={
+                cardAnimated[i]
+                  ? { animation: 'cardDeal 0.4s cubic-bezier(0.22, 1, 0.36, 1) both' }
+                  : { opacity: 0 }
+              }
             >
               <Card card={c} size="sm" />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── "YOUR TURN" label beneath hero seat ── */}
+      {isHero && isCurrentTurn && (
+        <div className="mt-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[8px] sm:text-[10px] font-black uppercase tracking-widest animate-fade-in-up shadow-lg">
+          Your Turn!
         </div>
       )}
     </div>

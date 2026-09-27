@@ -457,6 +457,12 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
     const maxSeats = Math.max(serverState.seats.length, 6);
     const existingHeroCards = gameState.players.find((p) => p?.id === currentUserId)?.cards || [];
 
+    // Determine if this is a new hand starting (empty board at preflop/waiting)
+    // If so, don't carry over hole cards from the previous hand
+    const incomingStage = mapServerStage(serverState.stage);
+    const isNewHand = serverState.board.length === 0 &&
+      (incomingStage === 'preflop' || incomingStage === 'waiting');
+
     const mappedPlayers: (Player | null)[] = serverState.seats.map((s, idx) => {
       if (!s.username) return null;
       const isHero = s.username === currentUserId;
@@ -469,7 +475,8 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         chips: s.chips ?? 0,
         currentBet: s.current_bet ?? 0,
         status: s.status === 'Folded' ? 'folded' : s.status === 'AllIn' ? 'all-in' : 'active',
-        cards: isHero && existingHeroCards.length === 2 ? existingHeroCards : [],
+        // Only preserve hero hole cards if the hand is mid-progress (board has cards or not a new hand)
+        cards: isHero && !isNewHand && existingHeroCards.length === 2 ? existingHeroCards : [],
         seatIndex: idx,
         isCurrentTurn,
       };
@@ -498,6 +505,8 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         isStarted: serverState.is_started,
         creatorId: serverState.creator_id,
         creatorUsername: serverState.creator_username,
+        // Clear winner overlay when a new hand begins
+        winningHand: isNewHand ? null : prev.gameState.winningHand,
       },
     }));
   },
@@ -558,15 +567,33 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         const updated = [...prev.gameState.players];
         if (typeof seat === 'number' && updated[seat]) {
           const p = updated[seat]!;
+          // Subtract newly committed chips from the player's stack
+          const prevBet = p.currentBet ?? 0;
+          const newBet = chipsCommitted ?? prevBet;
+          const chipsSpent = newBet - prevBet;
           updated[seat] = {
             ...p,
-            currentBet: chipsCommitted ?? p.currentBet,
+            chips: Math.max(0, p.chips - (chipsSpent > 0 ? chipsSpent : 0)),
+            currentBet: newBet,
             status: actionName === 'fold' ? 'folded' : actionName === 'allin' ? 'all-in' : p.status,
             lastAction: { type: actionName as any, amount: chipsCommitted },
           };
         }
         return { gameState: { ...prev.gameState, players: updated } };
       });
+    } else if (eventType === 'HandStarted') {
+      // New hand: clear community cards, reset player bets/cards for a fresh round
+      set((prev) => ({
+        gameState: {
+          ...prev.gameState,
+          communityCards: [],
+          winningHand: null,
+          stage: 'preflop',
+          players: prev.gameState.players.map((p) =>
+            p ? { ...p, cards: [], currentBet: 0, lastAction: undefined, status: 'active' } : null
+          ),
+        },
+      }));
     } else if (eventType === 'StreetStarted') {
       const stage = mapServerStage(eventPayload.stage || '');
       const board = parseCards(eventPayload.board || []);
