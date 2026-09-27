@@ -62,6 +62,8 @@ export interface TableInfo {
   starting_chips?: number | null;
   min_buy_in?: number;
   max_buy_in?: number;
+  creator_id?: string | null;
+  creator_username?: string | null;
 }
 
 export interface SeatInfo {
@@ -191,6 +193,11 @@ export interface ServerYourTurn {
   legal_actions: LegalActions;
 }
 
+export interface ServerTableCreated {
+  type: 'TableCreated';
+  table_id: string;
+}
+
 export interface ServerTableState {
   type: 'TableState';
   table_id: string;
@@ -201,6 +208,8 @@ export interface ServerTableState {
   current_player: number | null;
   game_mode: GameMode;
   is_started: boolean;
+  creator_id?: string | null;
+  creator_username?: string | null;
 }
 
 export interface ServerGameEvent {
@@ -215,6 +224,7 @@ export interface ServerError {
 }
 
 export type ServerMessage =
+  | ServerTableCreated
   | ServerTableList
   | ServerJoinedTable
   | ServerPlayerJoined

@@ -77,18 +77,74 @@ export const Header: React.FC = () => {
             <span className="md:hidden">Rooms</span>
           </button>
 
-          {/* Start Hand button in Live Mode */}
-          {currentTableId && !gameState.isStarted && (
-            <button
-              type="button"
-              onClick={startHand}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all animate-pulse"
-              title="Start poker hand on current table"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Deal Hand</span>
-            </button>
-          )}
+          {/* Game Controls & Auto-Play Status Badges */}
+          {currentTableId && (() => {
+            const seatedCount = gameState.players.filter((p) => p !== null && p.chips > 0).length;
+            const isTournament = gameState.gameMode === 'Tournament';
+            const isHost = Boolean(
+              gameState.creatorUsername
+                ? auth.username === gameState.creatorUsername
+                : true
+            );
+
+            if (isTournament) {
+              if (!gameState.isStarted) {
+                if (isHost) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={startHand}
+                      disabled={seatedCount < 2}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-white text-xs font-bold shadow-md transition-all ${
+                        seatedCount >= 2
+                          ? 'bg-amber-600 hover:bg-amber-500 animate-pulse cursor-pointer'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      }`}
+                      title={seatedCount >= 2 ? 'Start tournament' : 'Need at least 2 players to start'}
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Start Tournament ({seatedCount}/2)</span>
+                    </button>
+                  );
+                } else {
+                  return (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-amber-500/30 text-amber-300 text-xs">
+                      <Users className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="hidden sm:inline">Waiting for host to start ({seatedCount}/2)</span>
+                      <span className="sm:hidden">Waiting ({seatedCount}/2)</span>
+                    </div>
+                  );
+                }
+              } else {
+                return (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs font-semibold">
+                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">Tournament Active</span>
+                    <span className="sm:hidden">Active</span>
+                  </div>
+                );
+              }
+            } else {
+              // Cash Game Mode
+              if (seatedCount < 2) {
+                return (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs">
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Waiting for players ({seatedCount}/2)</span>
+                    <span className="sm:hidden">({seatedCount}/2)</span>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                    <span className="hidden sm:inline">Auto-Play Active</span>
+                    <span className="sm:hidden">Live</span>
+                  </div>
+                );
+              }
+            }
+          })()}
 
           {/* Table summary badge */}
           <div className="hidden lg:flex flex-col">

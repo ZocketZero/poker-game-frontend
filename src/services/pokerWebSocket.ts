@@ -14,6 +14,7 @@ import {
   ServerTournamentEnded,
   ServerYourTurn,
   ServerError,
+  ServerTableCreated,
 } from '../types/backend';
 
 export type WsStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -31,6 +32,7 @@ class PokerWebSocketClient {
 
   // Listeners
   private statusListeners: ((status: WsStatus) => void)[] = [];
+  private tableCreatedListeners: MessageListener<ServerTableCreated>[] = [];
   private tableListListeners: MessageListener<ServerTableList>[] = [];
   private joinedTableListeners: MessageListener<ServerJoinedTable>[] = [];
   private playerJoinedListeners: MessageListener<ServerPlayerJoined>[] = [];
@@ -236,6 +238,9 @@ class PokerWebSocketClient {
 
   private routeMessage(msg: ServerMessage): void {
     switch (msg.type) {
+      case 'TableCreated':
+        this.tableCreatedListeners.forEach((fn) => fn(msg));
+        break;
       case 'TableList':
         this.tableListListeners.forEach((fn) => fn(msg));
         break;
@@ -280,6 +285,13 @@ class PokerWebSocketClient {
     this.statusListeners.push(callback);
     return () => {
       this.statusListeners = this.statusListeners.filter((cb) => cb !== callback);
+    };
+  }
+
+  public onTableCreated(callback: MessageListener<ServerTableCreated>): () => void {
+    this.tableCreatedListeners.push(callback);
+    return () => {
+      this.tableCreatedListeners = this.tableCreatedListeners.filter((cb) => cb !== callback);
     };
   }
 

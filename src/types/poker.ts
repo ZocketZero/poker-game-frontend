@@ -66,6 +66,8 @@ export interface GameState {
   gameMode?: GameMode;
   isStarted?: boolean;
   serverLegalActions?: LegalActions | null;
+  creatorId?: string | null;
+  creatorUsername?: string | null;
 }
 
 export type ActionType = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all-in';

@@ -496,6 +496,8 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         maxSeats,
         gameMode: serverState.game_mode,
         isStarted: serverState.is_started,
+        creatorId: serverState.creator_id,
+        creatorUsername: serverState.creator_username,
       },
     }));
   },

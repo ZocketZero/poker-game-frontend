@@ -40,6 +40,18 @@ export function usePokerSocket() {
       usePokerStore.setState({ tables: msg.tables });
     });
 
+    const unsubTableCreated = pokerWsClient.onTableCreated((msg) => {
+      const { tables, joinTable } = usePokerStore.getState();
+      const target = tables.find((t) => t.id === msg.table_id);
+      const buyIn =
+        target?.game_mode === 'Tournament'
+          ? target.starting_chips || 1000
+          : target
+          ? Math.max(target.big_blind * 20, 200)
+          : 1000;
+      joinTable(msg.table_id, 0, buyIn);
+    });
+
     const unsubTableState = pokerWsClient.onTableState((msg) => {
       applyTableState(msg);
     });
@@ -78,6 +90,7 @@ export function usePokerSocket() {
 
     return () => {
       unsubStatus();
+      unsubTableCreated();
       unsubTableList();
       unsubTableState();
       unsubHoleCards();
