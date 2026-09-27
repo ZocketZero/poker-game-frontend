@@ -58,6 +58,7 @@ export interface TableInfo {
   stage: string;
   game_mode: GameMode;
   is_started: boolean;
+  ante?: number;
   starting_chips?: number | null;
   min_buy_in?: number;
   max_buy_in?: number;

@@ -17,6 +17,7 @@ import {
   createInitialMockGameState,
   sampleCommunityCards,
   generateMockPlayersForSeats,
+  defaultMockTables,
 } from '../utils/mockData';
 import { parseCards } from '../utils/cardParser';
 import { apiClient } from '../services/apiClient';
@@ -31,6 +32,12 @@ interface AuthState {
 }
 
 interface PokerStore {
+  // Navigation & Page Views
+  currentView: 'home' | 'table' | 'auth';
+  authViewMode: 'login' | 'register';
+  setCurrentView: (view: 'home' | 'table' | 'auth', authMode?: 'login' | 'register') => void;
+  quickPlay: () => void;
+
   // Game Table
   gameState: GameState;
   currentUserId: string;
@@ -123,7 +130,53 @@ const mapServerStage = (stage: string): TableStage => {
 const initialStoredUser = apiClient.getStoredUser();
 const initialStoredToken = apiClient.getStoredToken();
 
+// Initial view from hash if present
+const getInitialView = (): 'home' | 'table' | 'auth' => {
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes('table')) return 'table';
+    if (hash.includes('login') || hash.includes('register') || hash.includes('auth')) return 'auth';
+  }
+  return 'home';
+};
+
+const getInitialAuthMode = (): 'login' | 'register' => {
+  if (typeof window !== 'undefined' && window.location.hash.toLowerCase().includes('register')) {
+    return 'register';
+  }
+  return 'login';
+};
+
 export const usePokerStore = create<PokerStore>((set, get) => ({
+  // Navigation & Page Views
+  currentView: getInitialView(),
+  authViewMode: getInitialAuthMode(),
+  setCurrentView: (view, authMode) => {
+    set((state) => ({
+      currentView: view,
+      authViewMode: authMode || state.authViewMode,
+      isAuthOpen: false,
+      isLobbyOpen: false,
+    }));
+    if (typeof window !== 'undefined') {
+      const targetHash = view === 'auth' ? (authMode === 'register' ? '#register' : '#login') : `#${view}`;
+      window.history.replaceState(null, '', targetHash);
+    }
+  },
+
+  quickPlay: () => {
+    const { tables, joinTable } = get();
+    if (tables.length > 0) {
+      // Pick first active or available table
+      const target = tables.find((t) => t.player_count < t.max_players) || tables[0];
+      const buyIn = target.game_mode === 'Tournament' ? target.starting_chips || 1000 : target.big_blind * 50;
+      joinTable(target.id, 0, buyIn);
+    } else {
+      // Fallback: create mock table or switch to table view
+      set({ currentView: 'table', currentTableId: 'table-las-vegas-01' });
+    }
+  },
+
   gameState: createInitialMockGameState(),
   currentUserId: initialStoredUser?.username || 'Hero',
   isMockMode: true,
@@ -156,6 +209,7 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         },
         currentUserId: uname,
         isAuthOpen: false,
+        currentView: 'home',
         toastMessage: { text: `Welcome back, ${uname}! Chips: $${chips.toLocaleString()}`, type: 'success' },
       });
 
@@ -183,6 +237,7 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
         },
         currentUserId: uname,
         isAuthOpen: false,
+        currentView: 'home',
         toastMessage: { text: `Account created for ${uname}! Starting chips: $${chips.toLocaleString()}`, type: 'success' },
       });
 
@@ -208,54 +263,218 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
       currentUserId: 'Hero',
       isConnected: false,
       currentTableId: null,
+      currentView: 'home',
       toastMessage: { text: 'You have been logged out.', type: 'info' },
     });
   },
 
   // Lobby State
-  tables: [],
+  tables: defaultMockTables,
   currentTableId: null,
   isLobbyOpen: false,
   setIsLobbyOpen: (open) => set({ isLobbyOpen: open }),
 
   fetchTables: () => {
-    pokerWsClient.listTables();
+    const { isMockMode } = get();
+    if (!isMockMode) {
+      pokerWsClient.listTables();
+    }
   },
 
   createTable: (config) => {
-    pokerWsClient.createTable({
-      small_blind: config.small_blind,
-      big_blind: config.big_blind,
-      ante: config.ante,
-      max_players: config.max_players ?? 6,
-      game_mode: config.game_mode ?? 'Cash',
-      starting_chips: config.starting_chips,
-    });
-    set({ isLobbyOpen: false });
+    const { isMockMode, tables, auth, currentUserId } = get();
+    const newTableId = `table-${Date.now().toString(36)}`;
+    const tableName = config.name || `Cash Game $${config.small_blind}/$${config.big_blind}`;
+
+    if (isMockMode) {
+      const newTable: TableInfo = {
+        id: newTableId,
+        name: tableName,
+        game_mode: 'Cash',
+        small_blind: config.small_blind,
+        big_blind: config.big_blind,
+        ante: config.ante || 0,
+        max_players: config.max_players ?? 6,
+        player_count: 1,
+        stage: 'Waiting',
+        is_started: false,
+      };
+
+      const heroName = auth.username || currentUserId || 'Hero';
+      const maxSeats = config.max_players ?? 6;
+      const initialPlayers = generateMockPlayersForSeats(maxSeats);
+      // Ensure seat 0 is hero
+      initialPlayers[0] = {
+        id: currentUserId,
+        name: heroName,
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${heroName}`,
+        chips: 2000,
+        currentBet: 0,
+        status: 'active',
+        cards: [
+          { suit: 'spades', rank: 'A', faceUp: true },
+          { suit: 'hearts', rank: 'K', faceUp: true },
+        ],
+        seatIndex: 0,
+        isCurrentTurn: true,
+      };
+
+      set((prev) => ({
+        tables: [newTable, ...tables],
+        currentTableId: newTableId,
+        isLobbyOpen: false,
+        currentView: 'table',
+        gameState: {
+          ...prev.gameState,
+          tableId: newTableId,
+          tableName,
+          smallBlind: config.small_blind,
+          bigBlind: config.big_blind,
+          maxSeats,
+          players: initialPlayers,
+          pots: [{ amount: config.small_blind + config.big_blind, name: 'Main Pot' }],
+          communityCards: sampleCommunityCards.flop,
+        },
+        toastMessage: { text: `Room "${tableName}" created!`, type: 'success' },
+      }));
+    } else {
+      pokerWsClient.createTable({
+        small_blind: config.small_blind,
+        big_blind: config.big_blind,
+        ante: config.ante,
+        max_players: config.max_players ?? 6,
+        game_mode: 'Cash',
+        starting_chips: config.starting_chips,
+      });
+      set({ isLobbyOpen: false, currentView: 'table' });
+    }
   },
 
   createTournament: (config) => {
-    pokerWsClient.createTournament({
-      small_blind: config.small_blind,
-      big_blind: config.big_blind,
-      ante: config.ante,
-      max_players: config.max_players ?? 6,
-      starting_chips: config.starting_chips,
-    });
-    set({ isLobbyOpen: false });
+    const { isMockMode, tables, auth, currentUserId } = get();
+    const newTableId = `tourney-${Date.now().toString(36)}`;
+    const tableName = `Tournament $${config.small_blind}/$${config.big_blind}`;
+
+    if (isMockMode) {
+      const newTable: TableInfo = {
+        id: newTableId,
+        name: tableName,
+        game_mode: 'Tournament',
+        small_blind: config.small_blind,
+        big_blind: config.big_blind,
+        ante: config.ante || 0,
+        max_players: config.max_players ?? 6,
+        player_count: 1,
+        stage: 'Waiting',
+        starting_chips: config.starting_chips,
+        is_started: false,
+      };
+
+      const heroName = auth.username || currentUserId || 'Hero';
+      const maxSeats = config.max_players ?? 6;
+      const initialPlayers = generateMockPlayersForSeats(maxSeats);
+      initialPlayers[0] = {
+        id: currentUserId,
+        name: heroName,
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${heroName}`,
+        chips: config.starting_chips,
+        currentBet: 0,
+        status: 'active',
+        cards: [
+          { suit: 'spades', rank: 'A', faceUp: true },
+          { suit: 'hearts', rank: 'K', faceUp: true },
+        ],
+        seatIndex: 0,
+        isCurrentTurn: true,
+      };
+
+      set((prev) => ({
+        tables: [newTable, ...tables],
+        currentTableId: newTableId,
+        isLobbyOpen: false,
+        currentView: 'table',
+        gameState: {
+          ...prev.gameState,
+          tableId: newTableId,
+          tableName,
+          smallBlind: config.small_blind,
+          bigBlind: config.big_blind,
+          maxSeats,
+          players: initialPlayers,
+          pots: [{ amount: config.small_blind + config.big_blind, name: 'Main Pot' }],
+          communityCards: sampleCommunityCards.flop,
+        },
+        toastMessage: { text: `Tournament "${tableName}" created!`, type: 'success' },
+      }));
+    } else {
+      pokerWsClient.createTournament({
+        small_blind: config.small_blind,
+        big_blind: config.big_blind,
+        ante: config.ante,
+        max_players: config.max_players ?? 6,
+        starting_chips: config.starting_chips,
+      });
+      set({ isLobbyOpen: false, currentView: 'table' });
+    }
   },
 
   joinTable: (tableId, seat, buyIn) => {
-    set({ currentTableId: tableId, isLobbyOpen: false });
-    pokerWsClient.joinTable(tableId, seat, buyIn);
+    const { isMockMode, tables, auth, currentUserId } = get();
+
+    if (isMockMode) {
+      const found = tables.find((t) => t.id === tableId);
+      const tableName = found ? found.name : `Table ${tableId}`;
+      const sb = found ? found.small_blind : 10;
+      const bb = found ? found.big_blind : 20;
+      const maxSeats = found ? found.max_players : 6;
+      const heroName = auth.username || currentUserId || 'Hero';
+
+      const players = generateMockPlayersForSeats(maxSeats);
+      const targetSeat = Math.min(seat, maxSeats - 1);
+      players[targetSeat] = {
+        id: currentUserId,
+        name: heroName,
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${heroName}`,
+        chips: buyIn || 2000,
+        currentBet: 0,
+        status: 'active',
+        cards: [
+          { suit: 'spades', rank: 'A', faceUp: true },
+          { suit: 'hearts', rank: 'K', faceUp: true },
+        ],
+        seatIndex: targetSeat,
+        isCurrentTurn: true,
+      };
+
+      set((prev) => ({
+        currentTableId: tableId,
+        isLobbyOpen: false,
+        currentView: 'table',
+        gameState: {
+          ...prev.gameState,
+          tableId,
+          tableName,
+          smallBlind: sb,
+          bigBlind: bb,
+          maxSeats,
+          players,
+          pots: [{ amount: sb + bb, name: 'Main Pot' }],
+          communityCards: sampleCommunityCards.flop,
+        },
+        toastMessage: { text: `Joined ${tableName}!`, type: 'success' },
+      }));
+    } else {
+      set({ currentTableId: tableId, isLobbyOpen: false, currentView: 'table' });
+      pokerWsClient.joinTable(tableId, seat, buyIn);
+    }
   },
 
   leaveTable: () => {
-    const { currentTableId } = get();
-    if (currentTableId) {
+    const { currentTableId, isMockMode } = get();
+    if (!isMockMode && currentTableId) {
       pokerWsClient.leaveTable(currentTableId);
     }
-    set({ currentTableId: null });
+    set({ currentTableId: null, currentView: 'home', toastMessage: { text: 'Returned to Lobby', type: 'info' } });
   },
 
   startHand: () => {

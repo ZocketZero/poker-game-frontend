@@ -14,6 +14,7 @@ import {
   Play,
   X,
   Coins,
+  ArrowLeft,
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -33,6 +34,8 @@ export const Header: React.FC = () => {
   const auth = usePokerStore((state) => state.auth);
   const setIsAuthOpen = usePokerStore((state) => state.setIsAuthOpen);
   const setIsLobbyOpen = usePokerStore((state) => state.setIsLobbyOpen);
+  const setCurrentView = usePokerStore((state) => state.setCurrentView);
+  const leaveTable = usePokerStore((state) => state.leaveTable);
   const currentTableId = usePokerStore((state) => state.currentTableId);
   const startHand = usePokerStore((state) => state.startHand);
   const toastMessage = usePokerStore((state) => state.toastMessage);
@@ -43,7 +46,22 @@ export const Header: React.FC = () => {
       <header className="w-full h-11 sm:h-12 shrink-0 bg-slate-950/90 border-b border-slate-800/80 px-2 sm:px-4 py-1 flex items-center justify-between backdrop-blur-md z-30 select-none">
         {/* Brand & Table Info */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setIsLobbyOpen(true)}>
+          {/* Back to Lobby Button */}
+          <button
+            type="button"
+            onClick={() => leaveTable()}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition-colors shadow-sm"
+            title="Leave table and return to lobby"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Lobby</span>
+          </button>
+
+          <div
+            className="flex items-center gap-1.5 cursor-pointer"
+            onClick={() => setCurrentView('home')}
+            title="Return to Poker Pro Home"
+          >
             <span className="text-base sm:text-lg">♠️</span>
             <span className="font-serif-poker font-black text-sm sm:text-base bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
               POKER PRO
@@ -59,8 +77,8 @@ export const Header: React.FC = () => {
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors shadow-sm"
           >
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Lobby Tables</span>
-            <span className="md:hidden">Lobby</span>
+            <span className="hidden md:inline">Browse Rooms</span>
+            <span className="md:hidden">Rooms</span>
           </button>
 
           {/* Start Hand button in Live Mode */}
