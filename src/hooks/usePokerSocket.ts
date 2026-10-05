@@ -61,7 +61,7 @@ export function usePokerSocket() {
     });
 
     const unsubYourTurn = pokerWsClient.onYourTurn((msg) => {
-      applyYourTurn(msg.legal_actions);
+      applyYourTurn(msg.legal_actions, msg.time_limit_secs);
     });
 
     const unsubGameEvent = pokerWsClient.onGameEvent((msg) => {

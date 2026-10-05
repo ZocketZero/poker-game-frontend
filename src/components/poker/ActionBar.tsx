@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePokerStore } from '../../store/usePokerStore';
 import { ActionType } from '../../types/poker';
+import { Clock } from 'lucide-react';
 
 export const ActionBar: React.FC = () => {
   const gameState = usePokerStore((state) => state.gameState);
@@ -13,6 +14,29 @@ export const ActionBar: React.FC = () => {
 
   const isHeroTurn = hero?.isCurrentTurn ?? false;
   const legal = gameState.serverLegalActions;
+
+  // Turn timer countdown calculation
+  const turnTimeLimit = gameState.turnTimeLimit || 15;
+  const turnStartedAt = gameState.turnStartedAt;
+  const [timeLeft, setTimeLeft] = useState<number>(turnTimeLimit);
+
+  useEffect(() => {
+    if (!turnStartedAt) {
+      setTimeLeft(turnTimeLimit);
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsed = (Date.now() - turnStartedAt) / 1000;
+      const rem = Math.max(0, turnTimeLimit - elapsed);
+      setTimeLeft(Math.ceil(rem));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 200);
+    return () => clearInterval(interval);
+  }, [turnStartedAt, turnTimeLimit]);
+
 
   // Derive legal action flags & ranges
   const canFold = legal ? legal.can_fold : isHeroTurn;
@@ -87,8 +111,8 @@ export const ActionBar: React.FC = () => {
           {/* Left: whose turn */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${timeLeft <= 5 ? 'bg-rose-400' : 'bg-emerald-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 ${timeLeft <= 5 ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
             </span>
             <span className="text-xs sm:text-sm text-slate-300 truncate">
               Waiting for{' '}
@@ -101,7 +125,13 @@ export const ActionBar: React.FC = () => {
               {currentTurnPlayer?.isBigBlind && (
                 <span className="ml-1 text-[9px] sm:text-[11px] bg-purple-600/30 text-purple-300 border border-purple-600/40 px-1 rounded-full font-semibold">BB</span>
               )}
-              <span className="text-slate-500">...</span>
+              {currentTurnPlayer && (
+                <span className={`ml-2 text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+                  timeLeft <= 5 ? 'bg-rose-900/60 text-rose-300 border border-rose-600/50' : 'text-slate-400'
+                }`}>
+                  ({timeLeft}s)
+                </span>
+              )}
             </span>
           </div>
 
@@ -125,7 +155,33 @@ export const ActionBar: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-1.5 sm:gap-3">
+        <div className="w-full max-w-4xl flex flex-col gap-2">
+          {/* Turn timer progress bar for Hero */}
+          <div className="w-full flex items-center justify-between text-[11px] font-semibold text-slate-400 px-1">
+            <div className="flex items-center gap-1.5">
+              <Clock className={`w-3.5 h-3.5 ${timeLeft <= 5 ? 'text-rose-400 animate-bounce' : 'text-amber-400'}`} />
+              <span className={timeLeft <= 5 ? 'text-rose-400 font-bold' : 'text-amber-300'}>
+                {timeLeft <= 5 ? 'Hurry up! Time is running out' : 'Your turn to act'}
+              </span>
+            </div>
+            <div className={`font-mono font-bold ${timeLeft <= 5 ? 'text-rose-400 animate-pulse text-xs' : 'text-amber-400'}`}>
+              {timeLeft}s remaining
+            </div>
+          </div>
+          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-200 ease-linear rounded-full ${
+                timeLeft <= 5
+                  ? 'bg-rose-500 shadow-rose-500 shadow-sm'
+                  : timeLeft <= 8
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+              }`}
+              style={{ width: `${Math.min(100, Math.max(0, (timeLeft / turnTimeLimit) * 100))}%` }}
+            />
+          </div>
+
+          <div className="w-full flex flex-col md:flex-row items-center justify-between gap-1.5 sm:gap-3">
           {/* Quick Presets & Bet Slider */}
           {(canBet || canRaise) && maxBet > minBet && (
             <div className="flex-1 w-full flex flex-col gap-1 sm:gap-1.5">
@@ -255,6 +311,7 @@ export const ActionBar: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
         </div>
       )}
     </div>

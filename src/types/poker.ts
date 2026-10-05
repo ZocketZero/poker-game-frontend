@@ -68,7 +68,10 @@ export interface GameState {
   serverLegalActions?: LegalActions | null;
   creatorId?: string | null;
   creatorUsername?: string | null;
+  turnTimeLimit?: number; // total allotted decision time in seconds (e.g. 15)
+  turnStartedAt?: number; // timestamp in ms when turn started
 }
+
 
 export type ActionType = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all-in';
 

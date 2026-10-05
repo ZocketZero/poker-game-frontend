@@ -93,7 +93,7 @@ interface PokerStore {
   // Server message handlers
   applyTableState: (state: ServerTableState) => void;
   applyHoleCards: (cards: RawCardCode[] | string[] | any) => void;
-  applyYourTurn: (legalActions: LegalActions) => void;
+  applyYourTurn: (legalActions: LegalActions, timeLimitSecs?: number) => void;
   applyGameEvent: (event: any) => void;
   applyPlayerJoined: (data: { seat: number; username: string; chips: number }) => void;
   applyPlayerLeft: (data: { seat: number; username: string }) => void;
@@ -533,7 +533,7 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
     });
   },
 
-  applyYourTurn: (legalActions) => {
+  applyYourTurn: (legalActions, timeLimitSecs = 15) => {
     const { currentUserId, gameState } = get();
     const heroIdx = gameState.players.findIndex((p) => p?.id === currentUserId);
 
@@ -541,6 +541,8 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
       gameState: {
         ...prev.gameState,
         serverLegalActions: legalActions,
+        turnTimeLimit: timeLimitSecs,
+        turnStartedAt: Date.now(),
         currentTurnSeat: heroIdx !== -1 ? heroIdx : prev.gameState.currentTurnSeat,
         players: prev.gameState.players.map((p) =>
           p ? (p.id === currentUserId ? { ...p, isCurrentTurn: true } : { ...p, isCurrentTurn: false }) : null
@@ -557,7 +559,21 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
     const eventType = Object.keys(rawEvent)[0] || rawEvent.type;
     const eventPayload = rawEvent[eventType] || rawEvent;
 
-    if (eventType === 'PlayerActed' || rawEvent.type === 'ActionTaken') {
+    if (eventType === 'PlayerTurn') {
+      const seat = eventPayload.player_id ?? eventPayload.seat;
+      const timeoutSecs = eventPayload.timeout_secs ?? 15;
+      set((prev) => ({
+        gameState: {
+          ...prev.gameState,
+          currentTurnSeat: typeof seat === 'number' ? seat : prev.gameState.currentTurnSeat,
+          turnTimeLimit: timeoutSecs,
+          turnStartedAt: Date.now(),
+          players: prev.gameState.players.map((p, idx) =>
+            p ? { ...p, isCurrentTurn: idx === seat } : null
+          ),
+        },
+      }));
+    } else if (eventType === 'PlayerActed' || rawEvent.type === 'ActionTaken') {
       const seat = eventPayload.player_id ?? eventPayload.seat;
       const act = eventPayload.action;
       const actionName = (typeof act === 'string' ? act : act?.action || 'Check').toLowerCase();
@@ -577,9 +593,17 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
             currentBet: newBet,
             status: actionName === 'fold' ? 'folded' : actionName === 'allin' ? 'all-in' : p.status,
             lastAction: { type: actionName as any, amount: chipsCommitted },
+            isCurrentTurn: false,
           };
         }
-        return { gameState: { ...prev.gameState, players: updated } };
+        return {
+          gameState: {
+            ...prev.gameState,
+            players: updated,
+            // If the acting player was the current turn player, reset turn info
+            ...(prev.gameState.currentTurnSeat === seat ? { turnStartedAt: undefined } : {}),
+          },
+        };
       });
     } else if (eventType === 'HandStarted') {
       // New hand: clear community cards, reset player bets/cards for a fresh round
@@ -589,8 +613,9 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
           communityCards: [],
           winningHand: null,
           stage: 'preflop',
+          turnStartedAt: undefined,
           players: prev.gameState.players.map((p) =>
-            p ? { ...p, cards: [], currentBet: 0, lastAction: undefined, status: 'active' } : null
+            p ? { ...p, cards: [], currentBet: 0, lastAction: undefined, status: 'active', isCurrentTurn: false } : null
           ),
         },
       }));
@@ -614,6 +639,7 @@ export const usePokerStore = create<PokerStore>((set, get) => ({
       set((prev) => ({
         gameState: {
           ...prev.gameState,
+          turnStartedAt: undefined,
           winningHand: {
             playerIds: [String(eventPayload.player_id ?? '')],
             handName: eventPayload.hand_rank ? JSON.stringify(eventPayload.hand_rank) : 'Winner declared',

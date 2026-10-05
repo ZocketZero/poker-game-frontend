@@ -3,7 +3,7 @@ import { Player } from '../../types/poker';
 import { Card } from './Card';
 import { ChipStack } from './ChipStack';
 import { usePokerStore } from '../../store/usePokerStore';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Clock } from 'lucide-react';
 
 interface PlayerSeatProps {
   player: Player | null;
@@ -17,6 +17,30 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
   const setIsAuthOpen = usePokerStore((state) => state.setIsAuthOpen);
   const currentTableId = usePokerStore((state) => state.currentTableId);
   const setIsLobbyOpen = usePokerStore((state) => state.setIsLobbyOpen);
+  const gameState = usePokerStore((state) => state.gameState);
+
+  // Turn countdown timer state
+  const isTurn = Boolean(player?.isCurrentTurn);
+  const turnTimeLimit = gameState.turnTimeLimit || 15;
+  const turnStartedAt = gameState.turnStartedAt;
+  const [timeLeft, setTimeLeft] = useState<number>(turnTimeLimit);
+
+  useEffect(() => {
+    if (!isTurn || !turnStartedAt) {
+      setTimeLeft(turnTimeLimit);
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsed = (Date.now() - turnStartedAt) / 1000;
+      const rem = Math.max(0, turnTimeLimit - elapsed);
+      setTimeLeft(Math.ceil(rem));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 250);
+    return () => clearInterval(interval);
+  }, [isTurn, turnStartedAt, turnTimeLimit]);
 
   // Track chip animation (flash when chip value changes)
   const prevChipsRef = useRef<number>(player?.chips ?? 0);
@@ -117,26 +141,32 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
       <div
         className={`relative flex items-center gap-1.5 sm:gap-2.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 backdrop-blur-md transition-all duration-300 shadow-xl ${
           isCurrentTurn
-            ? 'border-amber-400 shadow-turn-pulse scale-105'
+            ? timeLeft <= 5
+              ? 'border-rose-500 shadow-lg shadow-rose-500/40 scale-105'
+              : 'border-amber-400 shadow-turn-pulse scale-105'
             : isHero
             ? 'border-blue-500/80 ring-1 sm:ring-2 ring-blue-500/30'
             : 'border-slate-700/80'
         }`}
-        style={isCurrentTurn ? { animation: 'turnRing 1.8s ease-in-out infinite' } : undefined}
+        style={isCurrentTurn ? { animation: timeLeft <= 5 ? 'pulse 0.8s ease-in-out infinite' : 'turnRing 1.8s ease-in-out infinite' } : undefined}
       >
-        {/* Avatar + turn pulse dot */}
+        {/* Avatar + turn pulse dot + timer */}
         <div className="relative">
           <img
             src={avatar}
             alt={name}
             className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border bg-slate-800 object-cover transition-all duration-300 ${
-              isCurrentTurn ? 'border-amber-400' : 'border-slate-600/60'
+              isCurrentTurn
+                ? timeLeft <= 5
+                  ? 'border-rose-500'
+                  : 'border-amber-400'
+                : 'border-slate-600/60'
             }`}
           />
           {isCurrentTurn && (
             <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-amber-500 border border-slate-900" />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${timeLeft <= 5 ? 'bg-rose-400' : 'bg-amber-400'} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 ${timeLeft <= 5 ? 'bg-rose-500' : 'bg-amber-500'} border border-slate-900`} />
             </span>
           )}
         </div>
@@ -233,10 +263,13 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({ player, seatIndex, isHer
         </div>
       )}
 
-      {/* ── "YOUR TURN" label beneath hero seat ── */}
-      {isHero && isCurrentTurn && (
-        <div className="mt-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[8px] sm:text-[10px] font-black uppercase tracking-widest animate-fade-in-up shadow-lg">
-          Your Turn!
+      {/* ── Active Turn Indicator with countdown ── */}
+      {isCurrentTurn && (
+        <div className={`mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black uppercase tracking-wider animate-fade-in-up shadow-lg ${
+          timeLeft <= 5 ? 'bg-rose-500 text-white' : 'bg-amber-500 text-slate-950'
+        }`}>
+          <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 animate-spin" style={{ animationDuration: '3s' }} />
+          <span>{isHero ? 'Your Turn' : 'Thinking'}: {timeLeft}s</span>
         </div>
       )}
     </div>

@@ -191,7 +191,14 @@ export interface ServerYourTurn {
   type: 'YourTurn';
   table_id: string;
   legal_actions: LegalActions;
+  time_limit_secs?: number;
 }
+
+export interface PlayerTurnEvent {
+  player_id: number;
+  timeout_secs?: number;
+}
+
 
 export interface ServerTableCreated {
   type: 'TableCreated';
